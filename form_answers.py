@@ -6,23 +6,81 @@ Answers are stored as JSON for copy-paste or auto-fill.
 
 import logging
 from typing import Dict, Optional
-
 from llm import generate_structured, check_ollama_available
 
 logger = logging.getLogger(__name__)
 
-STANDARD_QUESTIONS = [
+# ---------------------------------------------------------------------------
+# Candidate-specific fixed answers
+# These are factual and don't need LLM generation.
+# ---------------------------------------------------------------------------
+VISA_ANSWER = (
+    "I am a US citizen and do not require visa sponsorship."
+)
+
+START_DATE_ANSWER = (
+    "I can start within 30 days, allowing time to transition my current "
+    "consulting commitments."
+)
+
+SALARY_ANSWER = (
+    "I am open to discussing compensation based on the full package and role "
+    "scope. My expectation is aligned with market rates for senior data "
+    "leadership roles in this location and industry."
+)
+
+LEAVING_ANSWER = (
+    "I have been running my own data consulting practice through LBS Ventures, "
+    "working with clients on analytics strategy, platform builds, and team "
+    "development. I am now looking to bring that work in-house — joining an "
+    "organization where I can build something at scale and have sustained "
+    "impact on a single mission."
+)
+
+# ---------------------------------------------------------------------------
+# Questions the LLM will generate personalized answers for
+# ---------------------------------------------------------------------------
+GENERATED_QUESTIONS = [
     "Why do you want to work at {company}?",
     "What are your greatest strengths?",
     "Describe a challenging technical project you worked on.",
-    "Why are you leaving your current position?",
-    "Where do you see yourself in 5 years?",
-    "Tell us about yourself (elevator pitch).",
+    "Tell us about yourself.",
     "What is your experience with {tech}?",
-    "What is your expected salary?",
-    "What is your earliest start date?",
-    "Do you require visa sponsorship?",
+    "How do you approach building and leading data teams?",
+    "Describe a time you used data to influence a major business decision.",
+    "What does a great data culture look like to you?",
 ]
+
+# Questions with fixed answers — LLM does not generate these
+FIXED_QUESTIONS = {
+    "Why are you leaving your current position?":   LEAVING_ANSWER,
+    "Where do you see yourself in 5 years?":        None,  # LLM generates this one
+    "What is your expected salary?":                SALARY_ANSWER,
+    "What is your earliest start date?":            START_DATE_ANSWER,
+    "Do you require visa sponsorship?":             VISA_ANSWER,
+}
+
+# Writing rules — consistent with cover letter and CV
+ANSWER_WRITING_RULES = """
+WRITING RULES — follow these exactly:
+
+- Every answer must consist of direct affirmative statements.
+- Do not use not-X-but-Y structures. State the positive directly.
+- No em dashes.
+- No rhetorical fragments used for emphasis.
+- No stacked parallel hype phrases (e.g. "Real X. Real Y. Real Z.").
+- No abstract nouns without measurable or observable referents.
+- No superlatives like "best," "top," or "ideal" unless defined by a metric.
+- No contrast framing. Write only direct, affirmative statements.
+- One complete sentence per idea.
+- Each sentence must contain an actor, action, or measurable object.
+- Prefer verbs tied to operations or outcomes over nouns tied to concepts.
+- Do not use: leverage, cadence, touchpoint, anchor, framing, lever, moment,
+  signal, belonging, alignment, synergy, spearheaded, championed, revolutionized,
+  transformed (unless tied to a specific metric).
+- Combine related observations when they describe the same entity or metric.
+- 2-4 sentences per answer. Professional but direct.
+"""
 
 
 def generate_form_answers(
@@ -35,7 +93,9 @@ def generate_form_answers(
 ) -> Dict[str, str]:
     """Generate answers to common application form questions.
 
-    Returns dict mapping question -> answer.
+    Returns dict mapping question text -> answer string.
+    Fixed answers (visa, salary, start date, leaving) are returned directly
+    without calling the LLM. All other answers are generated from life-story.md.
     """
     if not check_ollama_available():
         logger.error("Ollama not available")
@@ -43,53 +103,115 @@ def generate_form_answers(
 
     key_tech = ", ".join(job_analysis.get("key_technologies", [])[:3])
 
-    # Build the questions with company/tech filled in
-    questions = []
-    for q in STANDARD_QUESTIONS:
+    # Build the LLM-generated question list with substitutions
+    generated_questions = []
+    for q in GENERATED_QUESTIONS:
         q = q.replace("{company}", company)
-        q = q.replace("{tech}", key_tech or "the technologies in this role")
-        questions.append(q)
+        q = q.replace("{tech}", key_tech or "the core technologies in this role")
+        generated_questions.append(q)
 
-    questions_text = "\n".join(f"{i+1}. {q}" for i, q in enumerate(questions))
+    # Add "5 years" to the generated list
+    five_years_q = "Where do you see yourself in 5 years?"
+    generated_questions.append(five_years_q)
 
-    prompt = f"""Generate answers to these job application form questions for Ahmed Tawfik Aboukhadra.
+    questions_text = "\n".join(
+        f"{i + 1}. {q}" for i, q in enumerate(generated_questions)
+    )
+
+    user_name = _extract_user_name(life_story)
+
+    prompt = f"""Generate answers to these job application form questions for {user_name}.
 
 ROLE: {title} at {company}
-DOMAIN: {job_analysis.get('domain', 'general_ml')}
+DOMAIN: {job_analysis.get('domain', 'data_analytics_bi')}
 KEY TECHNOLOGIES: {key_tech}
 COMPANY MISSION: {job_analysis.get('company_mission', '')}
+SENIORITY: {job_analysis.get('seniority', 'director')}
 
 JOB DESCRIPTION (excerpt):
 {description[:1500]}
 
-AHMED'S BACKGROUND:
+{user_name.upper()}'S BACKGROUND:
 {life_story[:4000]}
 
 QUESTIONS:
 {questions_text}
 
-RULES:
-- Each answer should be 2-4 sentences, professional but genuine
-- Reference specific projects, metrics, and technologies from Ahmed's background
-- For salary: say "I'm open to discussing compensation based on the full package and role scope. My expectation is aligned with market rates for senior ML/CV roles in [location]."
-- For visa: "I currently hold a German residence permit for research purposes. I may need employer support for a work visa transition depending on the country, but this is typically straightforward."
-- For start date: "I can start within 2-3 months, allowing time to complete my current commitments at DFKI."
-- For "leaving current position": Frame as natural transition from PhD/research to industry impact
+{ANSWER_WRITING_RULES}
 
-Return a JSON object where keys are the question numbers (as strings "1" through "10") and values are the answer strings.
+ADDITIONAL RULES:
+- Reference specific projects, metrics, and technologies from {user_name}'s background.
+- Do NOT fabricate metrics, roles, or technologies not present in the background above.
+- For the "5 years" question: describe the kind of organizational impact and scope
+  she wants to have — grounded in the trajectory visible in her background.
+- For the "experience with [tech]" question: if the technology is not in her
+  background, say so directly and connect the closest relevant experience instead.
+- For the company-specific question: reference what is known about the company
+  from the job description. Do not invent details about the company.
+
+Return a JSON object where keys are question numbers as strings ("1" through "{len(generated_questions)}")
+and values are the answer strings.
 """
 
     result = generate_structured(prompt, model=model, max_tokens=3000)
 
     if not result:
-        return {}
+        logger.error("LLM returned no result for form answers.")
+        return _fixed_answers_only(company)
 
-    # Map back to question text
-    answers = {}
-    for i, q in enumerate(questions):
+    # Map generated answers back to question text
+    answers: Dict[str, str] = {}
+    for i, q in enumerate(generated_questions):
         key = str(i + 1)
-        if key in result:
+        if key in result and result[key]:
             answers[q] = result[key]
+        else:
+            logger.warning("No answer generated for question %s: %s", key, q)
 
-    logger.info("Generated %d form answers for %s at %s", len(answers), title, company)
+    # Inject fixed answers — these override any LLM attempts
+    for question, answer in FIXED_QUESTIONS.items():
+        if answer is not None:
+            answers[question] = answer
+
+    logger.info(
+        "Generated %d form answers for %s at %s (%d fixed, %d LLM-generated)",
+        len(answers),
+        title,
+        company,
+        len([a for a in FIXED_QUESTIONS.values() if a is not None]),
+        len([q for q in generated_questions if q in answers]),
+    )
+
     return answers
+
+
+def _extract_user_name(life_story: str) -> str:
+    """Extract the user's full name from the life story."""
+    import re
+    for line in life_story.splitlines()[:20]:
+        m = re.search(r'\*\*Full Name:\*\*\s*(.+)', line)
+        if m:
+            return m.group(1).strip()
+    m = re.search(r'^#\s+Life Story\s*[—–-]\s*(.+)', life_story, re.MULTILINE)
+    if m:
+        return m.group(1).strip()
+    return "the candidate"
+
+
+def _fixed_answers_only(company: str) -> Dict[str, str]:
+    """Return only the fixed answers when LLM generation fails entirely."""
+    return {
+        q: a
+        for q, a in FIXED_QUESTIONS.items()
+        if a is not None
+    }
+
+
+def format_answers_for_display(answers: Dict[str, str]) -> str:
+    """Format answers as a readable plain-text fill guide."""
+    lines = []
+    for question, answer in answers.items():
+        lines.append(f"Q: {question}")
+        lines.append(f"A: {answer}")
+        lines.append("")
+    return "\n".join(lines).strip()

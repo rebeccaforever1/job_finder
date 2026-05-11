@@ -1,63 +1,37 @@
-# AI Apply — Automated Job Application Pipeline
+# job_finder — Automated Job Search Pipeline
 
-Fully automated job application system: scrapes listings from multiple job sources, scores them against your profile using semantic embeddings, and for top matches automatically generates a tailored CV, cover letter, form answers, and digest email — all driven by a local LLM (Qwen via Ollama).
-
----
-
-## Screenshots
-
-### Dashboard
-![Dashboard](screenshots/dashboard.png)
-
-### All Jobs
-![All Jobs](screenshots/jobs.png)
-
-### Automation Pipeline
-![Pipeline](screenshots/pipeline.png)
-
-### Applications
-![Applications](screenshots/applications.png)
-
-### Settings
-![Settings](screenshots/settings.png)
+Scrapes job listings from multiple sources, scores them against your profile using semantic embeddings, and for top matches automatically generates a tailored CV, cover letter, and form answers — all driven by a local LLM (Qwen via Ollama).
 
 ---
 
 ## Features
 
-- **Multi-source scraping** — pulls from job boards + internet-wide hiring search simultaneously
-- **Semantic matching** — sentence-transformer embeddings rank jobs against your full life story + profile
-- **AI relevance filter** — automatically filters for ML/AI/CV-related roles
-- **SQLite storage** — deduplicates and persists all scraped jobs and application state
-- **Automated CV customization** — LLM rewrites `employment.tex`, `skills.tex`, `projects.tex` for each job and compiles to PDF
-- **Automated cover letter generation** — LLM writes a tailored LaTeX cover letter, compiled to PDF
+- **Multi-source scraping** — pulls from Indeed, Glassdoor, Google Jobs, LinkedIn, Greenhouse, and Lever simultaneously
+- **Semantic matching** — sentence-transformer embeddings rank jobs against your full life story and profile
+- **Automated CV customization** — LLM rewrites `employment.tex`, `skills.tex`, and `projects.tex` for each job and compiles to PDF
+- **Automated cover letter generation** — LLM writes a tailored cover letter, compiled to PDF
 - **Form answer generation** — LLM pre-answers common application questions (motivation, salary, visa, etc.)
-- **Form-fill guide** — maps pre-generated answers to field names for browser-based auto-fill
+- **Form-fill guide** — maps pre-generated answers to specific form field names for browser-based manual entry
 - **Digest email notifier** — sends an HTML email every 2–3 days with new high-match jobs
-- **Background daemon** — runs the full pipeline on a configurable interval (default: every 48 h)
+- **Background daemon** — runs the full pipeline on a configurable interval (default: every 48 hours)
 - **Web dashboard** — Flask UI with filtering, sorting, and apply/hide actions
 - **CLI tools** — scrape, match, export, customize, run pipeline, and view top jobs from the terminal
+- **SQLite storage** — deduplicates and persists all scraped jobs and application state
 
 ---
 
 ## Supported Job Sources
 
-| Source | Type | API Key Required |
-|---|---|---|
-| **Remotive** | REST API | No |
-| **Arbeitnow** | REST API | No |
-| **Himalayas** | REST API | No |
-| **The Muse** | REST API | No |
-| **Adzuna** | REST API | Yes ([developer.adzuna.com](https://developer.adzuna.com)) |
-| **JSearch** (Google Jobs) | RapidAPI | Yes ([rapidapi.com](https://rapidapi.com/letscrape-6bRBa3QguO5/api/jsearch)) |
-| **LinkedIn** | Guest scraper | No |
-| **Indeed** | Web scraper | No |
-| **Glassdoor** | Web scraper | No |
-| **StepStone** | Web scraper | No |
-| **Internet Search** | DuckDuckGo web search (all domains) | No |
-| **Wuzzuf** | Web scraper (Egypt) | No |
-| **Bayt** | Web scraper (MENA) | No |
-| **GulfTalent** | Web scraper (Gulf) | No |
+| Source | Type |
+|---|---|
+| **Indeed** | Web scraper |
+| **Glassdoor** | Web scraper |
+| **Google Jobs** | RapidAPI (JSearch) |
+| **LinkedIn** | Guest scraper |
+| **Greenhouse** | ATS scraper |
+| **Lever** | ATS scraper |
+
+Google Jobs requires a RapidAPI key. All other sources work without one.
 
 ---
 
@@ -72,23 +46,29 @@ source venv/bin/activate
 pip install -r requirements.txt
 ```
 
-### 2. Install Ollama (local LLM)
+### 2. Install Ollama
 
 ```bash
 bash setup_ollama.sh
-# or manually:
-# brew install ollama && ollama pull qwen3.5:9b
 ```
+
+Or manually:
+
+```bash
+brew install ollama && ollama pull qwen2.5:3b
+```
+
+Use `qwen2.5:3b` on CPU or `qwen3.5:9b` on GPU / Apple Silicon. The 9b model follows complex instructions more reliably.
 
 ### 3. Configure Your Profile
 
-Everything lives **inside the project directory** — no external folders needed.
+Everything lives inside the project directory:
 
 ```
 job_finder/
-├── life-story.md        ← fill this in (your background)
-├── profile.yaml         ← fill this in (search config)
-└── cv/                  ← your LaTeX CV files go here
+├── life-story.md        ← your background (master source of truth)
+├── profile.yaml         ← search config (titles, locations, weights)
+└── cv/
     ├── cv-llt.tex
     ├── employment.tex
     ├── skills.tex
@@ -99,24 +79,24 @@ job_finder/
     └── applications/    ← auto-created; one subfolder per application
 ```
 
-#### Step 1 — Fill in your life story
+**Step 1 — Fill in your life story**
 
-Edit `life-story.md` in the project root. This is the master source of truth for matching and CV generation. A blank template is at `cv_templates/life_story_template.md`.
+Edit `life-story.md` in the project root. This file drives both job matching and CV/cover letter generation. A blank template is at `cv_templates/life_story_template.md`.
 
-#### Step 2 — Generate profile.yaml (requires Ollama)
+**Step 2 — Generate profile.yaml**
 
 ```bash
 python main.py init-profile
 ```
 
 Or copy and fill in manually:
+
 ```bash
 cp profile.yaml.example profile.yaml
 ```
 
-#### Step 3 — Set up your LaTeX CV (optional — only needed for PDF generation)
+**Step 3 — Set up your LaTeX CV**
 
-Copy the blank templates into `cv/`:
 ```bash
 mkdir -p cv/applications
 cp cv_templates/cv-llt-template.tex     cv/cv-llt.tex
@@ -128,16 +108,14 @@ cp cv_templates/settings.sty            cv/settings.sty
 touch cv/own-bib.bib
 ```
 
-Then fill in the `YOUR_*` placeholders in each file. See `cv_templates/README.md` for LaTeX installation instructions.
+Fill in the `YOUR_*` placeholders in each file. See `cv_templates/README.md` for LaTeX installation instructions (MiKTeX on Windows, MacTeX on Mac, texlive on Linux).
 
-> Job scraping and matching work without any CV setup. LaTeX + Ollama are only required for the PDF generation step.
+Job scraping and matching work without any CV setup. LaTeX and Ollama are only required for PDF generation.
 
-### 4. Set API Keys (optional but recommended)
+### 4. Set API Keys (optional)
 
 ```bash
-export ADZUNA_APP_ID="your_app_id"
-export ADZUNA_APP_KEY="your_app_key"
-export RAPIDAPI_KEY="your_rapidapi_key"
+export RAPIDAPI_KEY="your_rapidapi_key"   # for Google Jobs
 
 # For digest emails:
 export GMAIL_USER="you@gmail.com"
@@ -145,7 +123,7 @@ export GMAIL_APP_PASSWORD="your_app_password"
 export NOTIFY_EMAIL="you@gmail.com"
 ```
 
-> **Tip:** Add these to a `.env` file in the project root.
+Add these to a `.env` file in the project root to persist them.
 
 ---
 
@@ -154,14 +132,10 @@ export NOTIFY_EMAIL="you@gmail.com"
 ### Scrape Jobs
 
 ```bash
-# Scrape all configured boards
 python main.py scrape
 
 # Scrape specific boards only
-python main.py scrape --boards remotive arbeitnow himalayas
-
-# Limit results per board per query
-python main.py scrape --max 30
+python main.py scrape --boards indeed linkedin greenhouse
 
 # Also fetch full job descriptions (slower but better matching)
 python main.py scrape --fetch-details
@@ -183,18 +157,16 @@ python main.py match --min-score 0.3
 ```bash
 python main.py top
 
-# Show top 50 with minimum score
 python main.py top --limit 50 --min-score 0.2
 ```
 
-### Generate Customized Application for a Single Job
+### Generate a Tailored Application for One Job
 
 ```bash
-# Generates tailored CV (PDF), cover letter (PDF), and form answers
 python main.py customize --url "https://example.com/job/123"
 ```
 
-Output is saved to `~/CV/applications/<company-role-slug>/`.
+Generates a tailored CV (PDF), cover letter (PDF), and form answers. Output is saved to `cv/applications/<company-role-slug>/`.
 
 ### Show Pre-Generated Form Answers
 
@@ -202,9 +174,9 @@ Output is saved to `~/CV/applications/<company-role-slug>/`.
 python main.py answers --url "https://example.com/job/123"
 ```
 
-Prints a fill guide mapping form field names to your pre-generated answers.
+Prints a fill guide mapping form field names to your pre-generated answers for manual browser entry.
 
-### Run the Full Automation Pipeline (one shot)
+### Run the Full Pipeline
 
 ```bash
 # Scrape → match → customize → cover letter → form answers → email
@@ -220,14 +192,13 @@ python main.py pipeline --max 5 --threshold 0.6
 ### Run as Background Daemon
 
 ```bash
-# Repeats every 48 hours (default)
 python main.py daemon
 
-# Custom interval
+# Custom interval in hours
 python main.py daemon --interval 24
 ```
 
-Send `SIGTERM` or `Ctrl+C` for a graceful shutdown after the current cycle.
+Send `Ctrl+C` for a graceful shutdown after the current cycle completes.
 
 ### Export to JSON
 
@@ -241,18 +212,17 @@ python main.py export --limit 100 --min-score 0.3 -o filtered.json
 ```bash
 python main.py ui
 
-# Custom port / debug mode
 python main.py ui --port 8080 --debug
 ```
 
-Open **http://localhost:5000** in your browser.
+Open `http://localhost:5000` in your browser.
 
 ---
 
-## How the Automation Pipeline Works
+## How the Pipeline Works
 
 ```
-scrape (10 boards)
+scrape (6 boards)
     │
     ▼
 semantic match (sentence-transformers + profile embeddings)
@@ -261,15 +231,42 @@ semantic match (sentence-transformers + profile embeddings)
 customize CV  ──►  cover letter  ──►  form answers
     │
     ▼
-save application to DB  ──►  digest email (every 2-3 days)
+save to DB  ──►  digest email (every 2–3 days)
 ```
 
 1. **Scrape** — pulls fresh listings from all configured boards in parallel
-2. **Match** — encodes each job description + your profile into embeddings, ranks by cosine similarity
-3. **Customize CV** — LLM reads `life-story.md` and rewrites `employment.tex`, `skills.tex`, `projects.tex` to emphasize relevant experience; compiles to PDF via `pdflatex`
-4. **Cover letter** — LLM writes tailored body paragraphs; a fixed LaTeX wrapper is applied and compiled to PDF
+2. **Match** — encodes each job description and your profile into embeddings, ranks by cosine similarity
+3. **Customize CV** — LLM reads `life-story.md` and rewrites `employment.tex`, `skills.tex`, and `projects.tex` to emphasize relevant experience, then compiles to PDF
+4. **Cover letter** — LLM writes tailored body paragraphs, a fixed LaTeX wrapper is applied, and the result is compiled to PDF
 5. **Form answers** — LLM pre-answers common screening questions (motivation, relocation, salary, visa)
-6. **Notify** — sends an HTML digest email with new matches grouped by domain (3D Vision, Robotics, etc.)
+6. **Notify** — sends an HTML digest email with new matches
+
+---
+
+## Customizing LLM Prompts
+
+The prompts that drive CV and cover letter generation live in:
+
+- `cover_letter.py` — cover letter prompt
+- `cv_customizer.py` — CV tailoring prompt
+
+Open either file and locate the prompt string (look for a variable containing "write a cover letter" or "rewrite the employment section"). You can append any writing rules or style instructions directly to that string.
+
+The 9b model follows detailed prompt instructions significantly more reliably than the 3b model. If you add detailed style rules and find they are being ignored, switching models in `profile.yaml` under `pipeline.ollama_model` is the most effective fix.
+
+---
+
+## Output Structure
+
+Each application is saved to its own folder:
+
+```
+cv/applications/
+└── company-role-slug/
+    ├── cv-llt.pdf         ← tailored CV
+    ├── cover-letter.pdf   ← tailored cover letter
+    └── job.json           ← raw job data including source URL
+```
 
 ---
 
@@ -279,46 +276,34 @@ save application to DB  ──►  digest email (every 2-3 days)
 job_finder/
 ├── main.py              # CLI entry point
 ├── app.py               # Flask web dashboard
-├── pipeline.py          # Full automation orchestrator + daemon loop
-├── matcher.py           # Semantic scoring engine (sentence-transformers)
-├── cv_customizer.py     # LLM-driven CV tailoring + LaTeX compilation
-├── cover_letter.py      # LLM-driven cover letter generation + LaTeX compilation
+├── pipeline.py          # Automation orchestrator and daemon loop
+├── matcher.py           # Semantic scoring (sentence-transformers)
+├── cv_customizer.py     # LLM-driven CV tailoring and LaTeX compilation
+├── cover_letter.py      # LLM-driven cover letter generation and LaTeX compilation
 ├── form_answers.py      # LLM-driven screening question answers
-├── form_filler.py       # Field-mapping fill guide for browser auto-fill
+├── form_filler.py       # Field-mapping fill guide for browser entry
 ├── notifier.py          # Digest email sender (Gmail SMTP)
-├── llm.py               # Ollama/Qwen integration (generate_latex, generate_structured)
+├── llm.py               # Ollama/Qwen integration
 ├── models.py            # Data models (Job, JobBoard, SearchQuery)
-├── storage.py           # SQLite persistence (jobs, applications, pipeline runs)
-├── profile.yaml         # Your profile config (skills, titles, search params, weights)
-├── setup_ollama.sh      # One-shot Ollama + model installer
-├── requirements.txt     # Python dependencies
+├── storage.py           # SQLite persistence
+├── profile.yaml         # Your search and pipeline configuration
+├── life-story.md        # Your background (master source of truth)
 ├── jobs.db              # SQLite database (created on first run)
-├── scrapers/
-│   ├── base.py          # Abstract scraper interface
-│   ├── adzuna.py        # Adzuna API scraper
-│   ├── jsearch.py       # JSearch (RapidAPI) scraper
-│   ├── remotive.py      # Remotive API scraper
-│   ├── arbeitnow.py     # Arbeitnow API scraper (EU + remote, no key)
-│   ├── himalayas.py     # Himalayas API scraper (remote tech, no key)
-│   ├── themuse.py       # The Muse API scraper (400k+ jobs, no key)
-│   ├── linkedin.py      # LinkedIn scraper (authenticated)
-│   ├── linkedin_guest.py# LinkedIn guest scraper (no login)
-│   ├── indeed.py        # Indeed scraper
-│   ├── glassdoor.py     # Glassdoor scraper
-│   ├── stepstone.py     # StepStone scraper
-│   └── internet_search.py # Internet-wide hiring search scraper
-└── templates/           # Jinja2 templates for web UI
-    ├── base.html
-    ├── dashboard.html
-    ├── jobs.html
-    └── job_detail.html
+└── scrapers/
+    ├── base.py
+    ├── jsearch.py        # Google Jobs via RapidAPI
+    ├── linkedin_guest.py
+    ├── indeed.py
+    ├── glassdoor.py
+    ├── greenhouse.py
+    └── lever.py
 ```
 
 ---
 
 ## Configuration Reference
 
-### `profile.yaml`
+### profile.yaml
 
 | Section | Description |
 |---|---|
@@ -331,42 +316,17 @@ job_finder/
 | `search.remote` | Include remote positions |
 | `search.max_age_days` | Skip jobs older than N days |
 | `preferred_locations` | Locations that boost score |
-| `seniority_level` | Preferred level (`intern`, `junior`, `mid`, `senior`, `staff`, `principal`) |
+| `seniority_level` | Preferred level: `junior`, `mid`, `senior`, `staff`, `principal` |
 | `weights.skills` | Weight for skill keyword overlap |
 | `weights.title` | Weight for title match |
 | `weights.semantic` | Weight for embedding similarity (recommended: 0.55+) |
 | `weights.location` | Weight for location preference |
 | `weights.experience` | Weight for life-story overlap |
-| `weights.seniority` | Weight for seniority fit (penalizes jobs above preferred level) |
-| `weights.recency` | Weight for posting recency (date-posted impact) |
-| `pipeline.ollama_model` | Ollama model to use (default: `qwen3.5:9b`) |
+| `weights.seniority` | Weight for seniority fit |
+| `weights.recency` | Weight for posting recency |
+| `pipeline.ollama_model` | Ollama model (`qwen2.5:3b` or `qwen3.5:9b`) |
 | `pipeline.min_score` | Minimum score to trigger automation |
 | `pipeline.max_applications_per_run` | Cap on applications per pipeline run |
-
----
-
-## Environment Variables
-
-| Variable | Required For |
-|---|---|
-| `ADZUNA_APP_ID` / `ADZUNA_APP_KEY` | Adzuna scraper |
-| `RAPIDAPI_KEY` | JSearch scraper |
-| `GMAIL_USER` | Digest email sender |
-| `GMAIL_APP_PASSWORD` | Digest email (Gmail App Password) |
-| `NOTIFY_EMAIL` | Digest email recipient |
-
----
-
-## Adding a New Scraper
-
-1. Create `scrapers/my_board.py` implementing `scrape()` and `get_job_details()` methods
-2. Add the board to the `JobBoard` enum in `models.py`
-3. Register it in `scrapers/__init__.py`:
-   ```python
-   from .my_board import MyBoardScraper
-   SCRAPERS["my_board"] = MyBoardScraper
-   ```
-4. Add `"my_board"` to `search.boards` in `profile.yaml`
 
 ---
 

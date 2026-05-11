@@ -210,6 +210,16 @@ def cmd_scrape(args):
 
     unique_jobs = _filter_old_jobs(unique_jobs, max_age_days=180)
 
+    # Filter excluded companies
+    exclude = [c.lower() for c in profile.get("exclude_companies", [])]
+    if exclude:
+        before = len(unique_jobs)
+        unique_jobs = [
+            j for j in unique_jobs
+            if not any(excl in j.company.lower() for excl in exclude)
+        ]
+        logger.info(f"  Excluded {before - len(unique_jobs)} jobs from blocked companies")
+
     ranked = matcher.rank(unique_jobs)
     n_saved = save_jobs(ranked)
     logger.info(f"\nTotal: {len(ranked)} unique jobs scraped, {n_saved} new saved to DB")

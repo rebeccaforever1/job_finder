@@ -474,7 +474,7 @@ def create_app():
             return jsonify({"status": "error", "error": "CV PDF not found"}), 400
 
         # Use cover-letter.md (if present) as email body
-        subject = app_row.get("email_subject") or f"Application for {app_row['title']} - Ibrahim Abdullaziz"
+        subject = app_row.get("email_subject") or f"Application for {app_row['title']} - Rebecca Schlachter"
         md_cl = app_dir / "cover-letter.md"
         body = ""
         if md_cl.exists():
@@ -482,7 +482,7 @@ def create_app():
         if not body:
             body = (
                 f"Hello,\n\nPlease find my application for the {app_row['title']} position at "
-                f"{app_row['company']}.\n\nBest regards,\nIbrahim Abdullaziz"
+                f"{app_row['company']}.\n\nBest regards,\nRebecca Schlachter"
             )
 
         if dry_run:
