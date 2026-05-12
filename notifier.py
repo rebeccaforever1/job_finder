@@ -32,100 +32,16 @@ logger = logging.getLogger(__name__)
 # Order matters — first match wins.
 
 DOMAIN_TAGS = {
-    # Government & public sector
-    "king county":          "Government / Public Sector",
-    "city of seattle":      "Government / Public Sector",
-    "state of washington":  "Government / Public Sector",
-    "government":           "Government / Public Sector",
-    "public sector":        "Government / Public Sector",
-    "transit":              "Government / Public Sector",
-    "municipal":            "Government / Public Sector",
-    "usajobs":              "Government / Public Sector",
-    "federal":              "Government / Public Sector",
-    "agency":               "Government / Public Sector",
-
-    # Nonprofit & mission-driven
-    "nonprofit":            "Nonprofit / Mission-Driven",
-    "non-profit":           "Nonprofit / Mission-Driven",
-    "ngo":                  "Nonprofit / Mission-Driven",
-    "foundation":           "Nonprofit / Mission-Driven",
-    "idealist":             "Nonprofit / Mission-Driven",
-    "social impact":        "Nonprofit / Mission-Driven",
-    "equity":               "Nonprofit / Mission-Driven",
-
-    # Healthcare & health systems
-    "health system":        "Healthcare Analytics",
-    "hospital":             "Healthcare Analytics",
-    "clinical":             "Healthcare Analytics",
-    "payer":                "Healthcare Analytics",
-    "medicaid":             "Healthcare Analytics",
-    "medicare":             "Healthcare Analytics",
-    "epic":                 "Healthcare Analytics",
-    "ehr":                  "Healthcare Analytics",
-    "patient":              "Healthcare Analytics",
-    "health plan":          "Healthcare Analytics",
-
-    # Marketing & customer analytics
-    "clv":                  "Marketing / Customer Analytics",
-    "ltv":                  "Marketing / Customer Analytics",
-    "customer lifetime":    "Marketing / Customer Analytics",
-    "media mix":            "Marketing / Customer Analytics",
-    "marketing analytics":  "Marketing / Customer Analytics",
-    "campaign":             "Marketing / Customer Analytics",
-    "attribution":          "Marketing / Customer Analytics",
-    "retention":            "Marketing / Customer Analytics",
-    "growth":               "Marketing / Customer Analytics",
-
-    # People & HR analytics
-    "people analytics":     "People Analytics",
-    "workforce":            "People Analytics",
-    "hr analytics":         "People Analytics",
-    "human resources":      "People Analytics",
-    "talent":               "People Analytics",
-    "organizational":       "People Analytics",
-
-    # Product & digital analytics
-    "product analytics":    "Product Analytics",
-    "product data":         "Product Analytics",
-    "digital analytics":    "Product Analytics",
-    "google analytics":     "Product Analytics",
-    "adobe analytics":      "Product Analytics",
-    "experimentation":      "Product Analytics",
-    "a/b test":             "Product Analytics",
-
-    # Data engineering & platforms
-    "data engineering":     "Data Engineering",
-    "data platform":        "Data Engineering",
-    "data infrastructure":  "Data Engineering",
-    "etl":                  "Data Engineering",
-    "dbt":                  "Data Engineering",
-    "databricks":           "Data Engineering",
-    "snowflake":            "Data Engineering",
-    "pipeline":             "Data Engineering",
-
-    # BI & reporting
-    "business intelligence": "BI & Reporting",
-    "tableau":              "BI & Reporting",
-    "power bi":             "BI & Reporting",
-    "looker":               "BI & Reporting",
-    "reporting":            "BI & Reporting",
-    "dashboard":            "BI & Reporting",
-
-    # Data science & ML
-    "data science":         "Data Science / ML",
-    "machine learning":     "Data Science / ML",
-    "predictive":           "Data Science / ML",
-    "modeling":             "Data Science / ML",
-    "forecasting":          "Data Science / ML",
-    "mlops":                "Data Science / ML",
-
-    # Senior leadership (cross-domain)
-    "head of data":         "Data Leadership",
-    "vp of data":           "Data Leadership",
-    "chief data":           "Data Leadership",
-    "director of data":     "Data Leadership",
-    "director of analytics": "Data Leadership",
-    "vp analytics":         "Data Leadership",
+    "bgp":              "Network Engineering",
+    "ospf":             "Network Engineering",
+    "mpls":             "Network Engineering",
+    "juniper":          "Network Engineering",
+    "service provider": "Service Provider",
+    "network architect":"Network Engineering",
+    "network engineer": "Network Engineering",
+    "network automation":"Network Automation",
+    "network design":   "Network Engineering",
+    "cisco":            "Network Engineering",
 }
 
 # Color coding for match scores in the email
@@ -149,7 +65,7 @@ def _tag_job(job: Dict) -> str:
         if keyword in text:
             return tag
 
-    return "Data Analytics"  # sensible default for Rebecca's target roles
+    return "Network Engineering"  # sensible default for SMD's target roles
 
 
 # ── HTML builders ──────────────────────────────────────────────────────────────

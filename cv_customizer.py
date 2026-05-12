@@ -206,7 +206,6 @@ def analyze_job(
 ) -> Dict:
     """Analyze a job description to extract domain, key skills, and keywords.
 
-    Domains are calibrated to Rebecca's target roles in senior data leadership.
     """
     prompt = f"""Analyze this job posting and return a JSON object.
 
@@ -217,23 +216,26 @@ Job Description:
 {description[:3000]}
 
 Return JSON with these fields:
-- "domain": one of [
-    "data_analytics_bi",
-    "data_engineering",
-    "data_science_ml",
-    "people_analytics",
-    "product_analytics",
-    "marketing_analytics",
-    "government_civic_data",
-    "healthcare_analytics"
+-- "domain": one of [
+    "service_provider",
+    "cloud_networking",
+    "enterprise_networking",
+    "network_automation",
+    "network_security",
+    "data_center_networking",
+    "government_network",
+    "network_education"
   ]
   Choose the domain that best matches the PRIMARY focus of the role.
-  Use "government_civic_data" for public sector, transit, city, county, or policy roles.
-  Use "healthcare_analytics" for hospital, health system, payer, or clinical roles.
-  Use "marketing_analytics" for media, advertising, campaign, or customer lifecycle roles.
-  Use "people_analytics" for HR, workforce, or organizational data roles.
-  Use "data_engineering" only if the role is primarily about pipelines and infrastructure.
-  Default to "data_analytics_bi" for general senior analytics leadership roles.
+  Use "service_provider" for ISP, telco, carrier, or SP routing/design roles.
+  Use "cloud_networking" for AWS, Azure, GCP, or hyperscale infrastructure roles.
+  Use "enterprise_networking" for large enterprise LAN/WAN/campus network roles.
+  Use "network_automation" for roles primarily focused on Python/automation/NetDevOps.
+  Use "network_security" for roles focused on firewalls, zero trust, or security architecture.
+  Use "data_center_networking" for DC fabric, spine-leaf, or colo roles.
+  Use "government_network" for public sector, federal, or municipal network roles.
+  Use "network_education" for courseware, training, or certification program roles.
+  Default to "service_provider" for general senior network engineering roles.
 
 - "key_technologies": list of 5-10 specific technologies or platforms mentioned or implied
 - "keywords": list of 5-10 important keywords for this role
@@ -248,12 +250,12 @@ Return JSON with these fields:
     if not isinstance(raw, dict) or not raw:
         raw = {}
     return {
-        "domain":               raw.get("domain", "data_analytics_bi"),
+        "domain":               raw.get("domain", "service_provider"),
         "key_technologies":     raw.get("key_technologies", []) or [],
         "keywords":             raw.get("keywords", []) or [],
         "focus_areas":          raw.get("focus_areas", []) or [],
         "company_mission":      raw.get("company_mission", "") or "",
-        "seniority":            raw.get("seniority", "director") or "director",
+        "seniority":            raw.get("seniority", "individual_contributor") or "individual_contributor",
         "emphasize_leadership": raw.get("emphasize_leadership", True),
     }
 
@@ -267,19 +269,19 @@ def generate_employment_tex(
     """Generate a customized employment.tex for a specific job."""
 
     user_name = _extract_user_name(life_story)
-    domain = job_analysis.get("domain", "data_analytics_bi")
-    emphasize_leadership = job_analysis.get("emphasize_leadership", True)
-
+    domain = job_analysis.get("domain", "service_provider")
+    emphasize_leadership = job_analysis.get("emphasize_leadership", False)
     leadership_note = (
-        "This role requires team leadership and organizational strategy. "
-        "Ensure bullets in the most recent roles emphasize team size, org design, "
-        "and cross-functional leadership alongside technical outcomes."
+        "This role has a leadership or management component. "
+        "Highlight team leadership, mentoring, and cross-functional coordination "
+        "alongside deep technical expertise."
         if emphasize_leadership else
-        "This role is more technically focused. Emphasize technical execution, "
-        "modeling, and platform work. Keep leadership mentions brief."
+        "This is a deep technical individual contributor role. "
+        "Emphasize protocol expertise, automation work, and hands-on engineering. "
+        "Keep management mentions minimal."
     )
 
-    system = f"""You are an expert CV writer helping {user_name} apply for senior data roles.
+    system = f"""You are an expert CV writer helping {user_name} apply for senior network engineering roles.
 You produce LaTeX using the curve document class rubric format.
 Output ONLY valid LaTeX — no markdown, no explanations, no code fences.
 The output must compile with pdflatex without errors.
@@ -338,33 +340,31 @@ def generate_skills_tex(
     model: str = "qwen3.5:9b",
 ) -> str:
     """Generate a customized skills.tex for a specific job.
-
-    Rebecca's skills categories:
-    - Leadership & Strategy
-    - Data Science & Analytics
-    - Visualization & Reporting
-    - Technical Execution
-    - Cloud & Platforms
-    - Digital & Marketing Analytics
-    - Governance & Compliance
-    - Research Methods
+    
+    Sergio's skills categories:
+    - Routing Protocols
+    - Network Platforms
+    - Network Architecture & Design
+    - Automation & Programming
+    - Certifications
+    - Languages
     """
 
     user_name = _extract_user_name(life_story)
-    domain = job_analysis.get("domain", "data_analytics_bi")
-
+    domain = job_analysis.get("domain", "service_provider")
     # Map domains to which skill categories should lead
+    # These match Sergio's actual skills.tex categories
     domain_priority = {
-        "data_analytics_bi":      ["Data Science & Analytics", "Visualization & Reporting", "Leadership & Strategy"],
-        "data_engineering":       ["Technical Execution", "Cloud & Platforms", "Data Science & Analytics"],
-        "data_science_ml":        ["Data Science & Analytics", "Technical Execution", "Cloud & Platforms"],
-        "people_analytics":       ["Data Science & Analytics", "Leadership & Strategy", "Research Methods"],
-        "product_analytics":      ["Data Science & Analytics", "Visualization & Reporting", "Technical Execution"],
-        "marketing_analytics":    ["Digital & Marketing Analytics", "Data Science & Analytics", "Cloud & Platforms"],
-        "government_civic_data":  ["Research Methods", "Governance & Compliance", "Data Science & Analytics"],
-        "healthcare_analytics":   ["Governance & Compliance", "Data Science & Analytics", "Visualization & Reporting"],
+        "service_provider":       ["Routing Protocols", "Network Architecture & Design", "Network Platforms"],
+        "cloud_networking":       ["Network Platforms", "Automation & Programming", "Routing Protocols"],
+        "enterprise_networking":  ["Network Architecture & Design", "Routing Protocols", "Network Platforms"],
+        "network_automation":     ["Automation & Programming", "Routing Protocols", "Network Platforms"],
+        "network_security":       ["Network Architecture & Design", "Routing Protocols", "Automation & Programming"],
+        "data_center_networking": ["Network Platforms", "Network Architecture & Design", "Routing Protocols"],
+        "government_network":     ["Network Architecture & Design", "Routing Protocols", "Network Platforms"],
+        "network_education":      ["Routing Protocols", "Network Platforms", "Automation & Programming"],
     }
-    priority_cats = domain_priority.get(domain, ["Data Science & Analytics", "Leadership & Strategy"])
+    priority_cats = domain_priority.get(domain, ["Routing Protocols", "Network Architecture & Design"])
 
     system = f"""You are an expert CV writer helping {user_name} apply for senior data roles.
 You produce LaTeX using the curve document class rubric format.
@@ -419,7 +419,7 @@ def generate_projects_tex(
 
     user_name = _extract_user_name(life_story)
 
-    system = f"""You are an expert CV writer helping {user_name} apply for senior data roles.
+    system = f"""You are an expert CV writer helping {user_name} apply for senior network engineering roles.
 You produce LaTeX using the curve document class rubric format.
 Output ONLY valid LaTeX — no markdown, no explanations, no code fences.
 {CV_WRITING_RULES}"""
@@ -427,7 +427,7 @@ Output ONLY valid LaTeX — no markdown, no explanations, no code fences.
     prompt = f"""Customize the projects section of {user_name}'s CV for this specific job.
 
 TARGET JOB:
-- Domain: {job_analysis.get('domain', 'data_analytics_bi')}
+- Domain: {job_analysis.get('domain', 'service_provider')}
 - Key Technologies: {', '.join(job_analysis.get('key_technologies', []))}
 - Focus Areas: {', '.join(job_analysis.get('focus_areas', []))}
 

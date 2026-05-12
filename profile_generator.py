@@ -22,24 +22,28 @@ PROFILE_SCHEMA = """
   "location": "current city, state",
   "summary": "2-3 sentence professional summary",
   "skills": [
-    "list of 20-50 technical skills, frameworks, tools, and domain competencies"
+    "list of 20-50 technical skills, protocols, platforms, and tools"
   ],
   "titles": [
     "list of 8-15 desired job titles that match the person's seniority and background",
-    "examples: Director of Data Analytics, VP of Data Science, Head of Data,",
-    "Senior Director of Analytics, Principal Data Scientist, Chief Data Officer"
+    "examples: Senior Network Architect, Principal Network Engineer, Staff Network Engineer,",
+    "Network Design Engineer, SP Network Architect, Network Automation Engineer,",
+    "Distinguished Engineer Networking, Principal Engineer Infrastructure"
   ],
   "keywords": [
     "list of 10-20 domain keywords to boost job matching",
-    "examples: CLV modeling, media mix modeling, data governance, Tableau, Snowflake"
+    "examples: BGP, MPLS-VPN, OSPF, IS-IS, Juniper, JunOS, service provider,",
+    "network automation, Python, network design, JNCIE, SP routing"
   ],
   "preferred_locations": [
     "list of cities or regions the person wants to work in"
   ],
   "search_queries": [
     "list of 8-12 concrete job search strings to use on job boards",
-    "examples: director of data analytics seattle, head of data remote,",
-    "VP analytics healthcare, senior director data science nonprofit"
+    "examples: senior network architect service provider seattle,",
+    "principal network engineer BGP MPLS remote,",
+    "network automation engineer python juniper,",
+    "staff network engineer SP design"
   ],
   "seniority_level": "one of: manager | director | vp | head_of | principal | executive"
 }
@@ -167,10 +171,10 @@ def _build_profile_yaml(data: dict) -> dict:
         search_locations = ["Seattle, WA"]
 
     search_queries = data.get("search_queries", [
-        "director of data analytics",
-        "head of data seattle",
-        "VP analytics remote",
-        "senior director data science",
+        "senior network architect service provider",
+        "principal network engineer BGP MPLS",
+        "network design engineer juniper remote",
+        "staff network engineer SP seattle",
     ])
 
     return {

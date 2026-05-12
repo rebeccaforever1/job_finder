@@ -20,21 +20,19 @@ VISA_ANSWER = (
 
 START_DATE_ANSWER = (
     "I can start within 30 days, allowing time to transition my current "
-    "consulting commitments."
+    "work commitments."
 )
 
 SALARY_ANSWER = (
-    "I am open to discussing compensation based on the full package and role "
-    "scope. My expectation is aligned with market rates for senior data "
-    "leadership roles in this location and industry."
+    "I am open to discussing compensation based on the full package and role scope. "
+    "My expectation is aligned with market rates for principal-level network "
+    "engineering roles in this location and industry."
 )
 
 LEAVING_ANSWER = (
-    "I have been running my own data consulting practice through LBS Ventures, "
-    "working with clients on analytics strategy, platform builds, and team "
-    "development. I am now looking to bring that work in-house — joining an "
-    "organization where I can build something at scale and have sustained "
-    "impact on a single mission."
+    "I am looking to move into a role focused on network design and architecture "
+    "at a service provider or large enterprise, where I can apply my SP routing "
+    "expertise and automation experience at scale."
 )
 
 # ---------------------------------------------------------------------------
