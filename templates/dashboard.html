@@ -1,7 +1,14 @@
 {% extends "base.html" %}
-{% block title %}AI Apply — Dashboard{% endblock %}
+{% block title %}job_finder — Dashboard{% endblock %}
 {% block content %}
-<h2>Dashboard</h2>
+
+<div class="page-header">
+    <h1 class="page-title">Dashboard</h1>
+    <div class="btn-group">
+        <button class="btn btn-ghost btn-sm" onclick="rescoreJobs()">Re-score All</button>
+        <button class="btn btn-primary btn-sm" onclick="scrapeJobs()">Scrape All Sources</button>
+    </div>
+</div>
 
 <div class="stats-grid">
     <div class="stat-card">
@@ -13,7 +20,7 @@
         <div class="label">Applied</div>
     </div>
     <div class="stat-card">
-        <div class="value">{{ avg_score }}</div>
+        <div class="value">{{ "%.0f"|format(avg_score * 100) }}%</div>
         <div class="label">Avg Match Score</div>
     </div>
     <div class="stat-card">
@@ -23,61 +30,59 @@
 </div>
 
 {% if boards %}
-<details open>
-    <summary>Jobs by Source</summary>
-    <div style="display:flex;gap:1rem;flex-wrap:wrap;margin-top:0.5rem">
+<div class="panel" style="margin-bottom:1.25rem">
+    <div class="panel-title">Jobs by Source</div>
+    <div class="source-tags">
         {% for b in boards %}
-        <span class="board-badge board-{{ b.board }}">{{ b.board }}: {{ b.cnt }}</span>
+        <a href="/jobs?board={{ b.board }}" class="source-tag">
+            <span class="board-badge board-{{ b.board }}">{{ b.board }}</span>
+            {{ b.cnt }}
+        </a>
         {% endfor %}
     </div>
-</details>
+</div>
 {% endif %}
 
-<div style="display:flex;gap:0.5rem;margin:1.5rem 0;flex-wrap:wrap">
-    <button onclick="scrapeJobs()" class="outline">Scrape All Sources</button>
-    <button onclick="scrapeJobs(['remotive'])" class="outline secondary">Remotive Only</button>
-    <button onclick="scrapeJobs(['adzuna'])" class="outline secondary">Adzuna Only</button>
-    <button onclick="scrapeJobs(['linkedin'])" class="outline secondary">LinkedIn Only</button>
-    <button onclick="rescoreJobs()" class="outline contrast">Re-score All</button>
-</div>
-<div id="scrape-status"></div>
+<div id="scrape-status" class="alert"></div>
 
 {% if total == 0 %}
-<article style="text-align:center;padding:3rem">
+<div class="empty-state">
     <h3>No jobs yet</h3>
-    <p>Click "Scrape All Sources" to start finding jobs, or set your API keys first:</p>
-    <pre style="text-align:left;max-width:500px;margin:1rem auto">
-export ADZUNA_APP_ID="your_app_id"
-export ADZUNA_APP_KEY="your_app_key"
-export RAPIDAPI_KEY="your_key"</pre>
-    <p><small>Remotive and LinkedIn (guest) work without API keys.</small></p>
-</article>
+    <p style="margin-bottom:1rem">Click "Scrape All Sources" to start, or paste a URL on the Pipeline page.</p>
+    <button class="btn btn-primary" onclick="scrapeJobs()">Scrape All Sources</button>
+</div>
 {% else %}
 
-<h3>Top Matches</h3>
-<div>
+<div class="page-header" style="margin-top:0.5rem">
+    <h2 class="page-title" style="font-size:1.1rem">Top Matches</h2>
+    <a href="/jobs" class="btn btn-ghost btn-sm">View all jobs →</a>
+</div>
+
+<div class="job-list">
     {% for job in jobs %}
-    <div class="job-row">
-        <div style="display:flex;justify-content:space-between;align-items:start">
-            <div>
-                <span class="score-badge {% if job.match_score >= 0.7 %}score-excellent{% elif job.match_score >= 0.4 %}score-good{% elif job.match_score >= 0.2 %}score-fair{% else %}score-low{% endif %}">
+    <div class="job-card">
+        <div class="job-card-header">
+            <div class="job-card-left">
+                <span class="score-badge {{ 'score-excellent' if job.match_score >= 0.7 else 'score-good' if job.match_score >= 0.4 else 'score-fair' if job.match_score >= 0.2 else 'score-low' }}">
                     {{ "%.0f"|format(job.match_score * 100) }}%
                 </span>
-                <span class="board-badge board-{{ job.board }}">{{ job.board }}</span>
-                {% if job.applied %}<span class="applied-badge">Applied</span>{% endif %}
+                <span class="badge board-badge board-{{ job.board }}">{{ job.board }}</span>
+                {% if job.applied %}<span class="badge applied-badge">Applied</span>{% endif %}
             </div>
             <div class="btn-group">
-                <button class="btn-sm outline" onclick="markApplied('{{ job.url }}')">Applied</button>
-                <button class="btn-sm outline secondary" onclick="hideJob('{{ job.url }}')">Hide</button>
+                <a href="/job?url={{ job.url | urlencode }}" class="btn btn-ghost btn-sm">Details</a>
+                <button class="btn btn-primary btn-sm" onclick="generateApplication('{{ job.url }}', this)">Generate</button>
+                <button class="btn btn-ghost btn-sm" onclick="markApplied('{{ job.url }}')">Applied</button>
+                <button class="btn btn-ghost btn-sm" onclick="hideJob('{{ job.url }}')">Hide</button>
             </div>
         </div>
-        <div class="job-title">
-            <a href="{{ job.url }}" target="_blank">{{ job.title }}</a>
-        </div>
+        <a href="{{ job.url }}" target="_blank" class="job-title">{{ job.title }}</a>
         <div class="job-meta">
-            {{ job.company }} &middot; {{ job.location }}
-            {% if job.salary %} &middot; <span class="salary">{{ job.salary }}</span>{% endif %}
-            {% if job.date_posted %} &middot; {{ job.date_posted[:10] }}{% endif %}
+            <span>{{ job.company }}</span>
+            <span class="job-meta-sep">·</span>
+            <span>{{ job.location }}</span>
+            {% if job.salary %}<span class="job-meta-sep">·</span><span class="salary">{{ job.salary }}</span>{% endif %}
+            {% if job.date_posted %}<span class="job-meta-sep">·</span><span>{{ job.date_posted[:10] }}</span>{% endif %}
         </div>
         {% if job.match_details.skills_matched %}
         <div class="skills-list">
@@ -87,17 +92,13 @@ export RAPIDAPI_KEY="your_key"</pre>
         </div>
         {% endif %}
         {% if job.description %}
-        <div class="desc-preview">{{ job.description[:500] }}{% if job.description|length > 500 %}...{% endif %}</div>
+        <div class="desc-preview">{{ job.description[:400] }}{% if job.description|length > 400 %}…{% endif %}</div>
         {% if job.description|length > 150 %}
         <button class="see-more-btn" onclick="toggleDescription(this)">See more</button>
         {% endif %}
         {% endif %}
     </div>
     {% endfor %}
-</div>
-
-<div style="text-align:center;margin-top:1rem">
-    <a href="/jobs">View all jobs &rarr;</a>
 </div>
 {% endif %}
 {% endblock %}

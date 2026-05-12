@@ -1,0 +1,165 @@
+{% extends "base.html" %}
+{% block title %}{{ job.title }} — AI Apply{% endblock %}
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ul>
+        <li><a href="/">Dashboard</a></li>
+        <li><a href="/jobs">Jobs</a></li>
+        <li>{{ job.title[:50] }}</li>
+    </ul>
+</nav>
+
+<article style="background:#fff;border:1px solid #e0e0e0">
+    <header>
+        <div style="display:flex;justify-content:space-between;align-items:start;flex-wrap:wrap;gap:0.5rem">
+            <div>
+                <h2 style="margin-bottom:0.3rem">{{ job.title }}</h2>
+                <p style="margin-bottom:0.5rem">
+                    <strong>{{ job.company }}</strong> &middot; {{ job.location }}
+                    {% if job.date_posted %} &middot; Posted: {{ job.date_posted[:10] }}{% endif %}
+                    {% if job.salary %} &middot; <span class="salary">{{ job.salary }}</span>{% endif %}
+                </p>
+            </div>
+            <div style="text-align:right">
+                <span class="score-badge {% if job.match_score >= 0.7 %}score-excellent{% elif job.match_score >= 0.4 %}score-good{% elif job.match_score >= 0.2 %}score-fair{% else %}score-low{% endif %}" style="font-size:1.2rem">
+                    {{ "%.0f"|format(job.match_score * 100) }}% match
+                </span>
+                <br>
+                <span class="board-badge board-{{ job.board }}" style="margin-top:0.3rem">{{ job.board }}</span>
+                {% if job.applied %}<span class="applied-badge">Applied</span>{% endif %}
+            </div>
+        </div>
+    </header>
+
+    <div style="display:flex;gap:0.5rem;margin-bottom:1rem;flex-wrap:wrap">
+        <a href="{{ job.url }}" target="_blank" role="button">Open Job Page</a>
+        <button class="outline" onclick="markApplied('{{ job.url }}')">Mark Applied</button>
+        <button class="outline secondary" onclick="hideJob('{{ job.url }}')">Hide</button>
+        {% if application %}
+            <a href="/applications" role="button" class="outline" style="background:#dcfce7;border-color:#16a34a;color:#16a34a">Application Ready</a>
+        {% else %}
+            <button onclick="generateApplication('{{ job.url }}')" style="background:#88AC0B;border-color:#88AC0B">Generate Application</button>
+        {% endif %}
+    </div>
+
+    {% if application %}
+    <details open>
+        <summary>Generated Application ({{ application.status }})</summary>
+        <div style="margin-top:0.5rem">
+            {% if application.cv_pdf_path %}
+            <p><strong>CV PDF:</strong> <a href="/download?path={{ application.cv_pdf_path }}" target="_blank">Download CV</a></p>
+            {% endif %}
+            {% if application.cover_letter_pdf_path %}
+            <p><strong>Cover Letter:</strong> <a href="/download?path={{ application.cover_letter_pdf_path }}" target="_blank">Download Cover Letter</a></p>
+            {% endif %}
+            {% if form_answers %}
+            <details>
+                <summary>Pre-generated Form Answers ({{ form_answers|length }})</summary>
+                {% for q, a in form_answers.items() %}
+                <div style="margin:0.8rem 0;padding:0.5rem;background:#f9fafb;border-radius:4px">
+                    <strong style="color:#1a1a2e">Q: {{ q }}</strong>
+                    <p style="margin:0.3rem 0 0 0;color:#4b5563">{{ a }}</p>
+                </div>
+                {% endfor %}
+            </details>
+            {% endif %}
+
+            <details style="margin-top:0.75rem" open>
+                <summary>Approve &amp; Send (Email)</summary>
+                <div style="margin-top:0.5rem">
+                    <label>Recruiter email</label>
+                    <input type="email" id="recruiter-email" placeholder="recruiter@company.com"
+                           value="{{ application.recruiter_email or '' }}">
+                    <div class="btn-group" style="margin-top:0.5rem">
+                        <button class="outline" onclick="approveSendFromJob({{ application.id }}, true)">Email me for review</button>
+                        <button style="background:#16a34a;border-color:#16a34a;color:#fff"
+                                onclick="approveSendFromJob({{ application.id }}, false)"
+                                {% if application.status not in ['ready','approved'] %}disabled{% endif %}>
+                            Approve &amp; Send
+                        </button>
+                    </div>
+                </div>
+            </details>
+        </div>
+    </details>
+    {% endif %}
+
+    {% if job.match_details %}
+    <details open>
+        <summary>Match Analysis</summary>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(130px, 1fr));gap:0.5rem;margin-top:0.5rem">
+            <div class="stat-card">
+                <div class="value" style="font-size:1.3rem">{{ "%.0f"|format((job.match_details.title_score or 0) * 100) }}%</div>
+                <div class="label">Title</div>
+            </div>
+            <div class="stat-card">
+                <div class="value" style="font-size:1.3rem">{{ "%.0f"|format((job.match_details.semantic_score or 0) * 100) }}%</div>
+                <div class="label">Semantic</div>
+            </div>
+            <div class="stat-card">
+                <div class="value" style="font-size:1.3rem">{{ "%.0f"|format((job.match_details.experience_score or 0) * 100) }}%</div>
+                <div class="label">Experience</div>
+            </div>
+            <div class="stat-card">
+                <div class="value" style="font-size:1.3rem">{{ "%.0f"|format((job.match_details.location_score or 0) * 100) }}%</div>
+                <div class="label">Location</div>
+            </div>
+            <div class="stat-card">
+                <div class="value" style="font-size:1.3rem">{{ "%.0f"|format((job.match_details.recency_score or 0) * 100) }}%</div>
+                <div class="label">Recency</div>
+            </div>
+        </div>
+    </details>
+    {% endif %}
+
+    {% if job.description %}
+    <details open>
+        <summary>Job Description</summary>
+        <div style="white-space:pre-wrap;margin-top:0.5rem;line-height:1.6">{{ job.description }}</div>
+    </details>
+    {% endif %}
+
+    <footer>
+        <small>
+            Scraped: {{ job.scraped_at[:19] if job.scraped_at else 'N/A' }}
+            {% if job.date_posted %} &middot; Posted: {{ job.date_posted[:10] }}{% endif %}
+            {% if job.job_type %} &middot; Type: {{ job.job_type }}{% endif %}
+        </small>
+    </footer>
+</article>
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function approveSendFromJob(appId, dryRun) {
+    const recruiterEmail = (document.getElementById('recruiter-email')?.value || '').trim();
+    if (!recruiterEmail) {
+        alert('Please enter recruiter email first.');
+        return;
+    }
+    const btn = event.target;
+    btn.disabled = true;
+    const old = btn.textContent;
+    btn.textContent = dryRun ? 'Previewing...' : 'Sending...';
+    try {
+        const resp = await fetch('/api/application/approve-send', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({app_id: appId, recruiter_email: recruiterEmail, dry_run: dryRun}),
+        });
+        const data = await resp.json();
+        if (data.status === 'ok') {
+            alert(dryRun ? 'Review email sent to you (not sent to company).' : 'Sent to company!');
+            window.location.reload();
+        } else {
+            alert('Error: ' + (data.error || 'Unknown error'));
+        }
+    } catch (e) {
+        alert('Error: ' + e.message);
+    } finally {
+        btn.disabled = false;
+        btn.textContent = old;
+    }
+}
+</script>
+{% endblock %}

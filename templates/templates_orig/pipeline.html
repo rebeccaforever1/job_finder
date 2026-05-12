@@ -1,0 +1,221 @@
+{% extends "base.html" %}
+{% block title %}Pipeline — AI Apply{% endblock %}
+{% block content %}
+<h2>Automation Pipeline</h2>
+
+<div class="stats-grid">
+    <div class="stat-card">
+        <div class="value">{{ runs|length }}</div>
+        <div class="label">Total Runs</div>
+    </div>
+    <div class="stat-card">
+        <div class="value">{{ total_applications }}</div>
+        <div class="label">Applications Generated</div>
+    </div>
+    <div class="stat-card">
+        <div class="value">{{ total_emails }}</div>
+        <div class="label">Emails Sent</div>
+    </div>
+    <div class="stat-card">
+        <div class="value" style="font-size:1.5rem;color:{% if email_enabled %}#16a34a{% else %}#d97706{% endif %}">
+            {{ "ON" if email_enabled else "OFF" }}
+        </div>
+        <div class="label">Email Notifications</div>
+    </div>
+</div>
+
+<!-- Controls -->
+<div style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-bottom:1.5rem">
+    <button onclick="runPipeline(false)" style="background:#88AC0B;border-color:#88AC0B">Run Pipeline Now</button>
+    <button class="outline" onclick="runPipeline(true)">Dry Run (Preview)</button>
+    <button class="outline {% if email_enabled %}secondary{% endif %}" onclick="toggleEmails()">
+        {{ "Disable" if email_enabled else "Enable" }} Email Notifications
+    </button>
+</div>
+
+<!-- Manual Job Insertion -->
+<details open>
+    <summary><strong>Score / Add Job by URL</strong></summary>
+    <div style="margin-top:0.75rem">
+        <div style="display:flex;gap:0.5rem;align-items:flex-end">
+            <div style="flex:1">
+                <label for="manual-url" style="font-size:0.85rem;color:#6b7280">Job URL (paste any job link — page is fetched automatically)</label>
+                <input type="url" id="manual-url" placeholder="https://..." required style="margin-top:0.25rem">
+            </div>
+            <div style="width:180px">
+                <label for="manual-location" style="font-size:0.85rem;color:#6b7280">Location (optional, affects score)</label>
+                <input type="text" id="manual-location" placeholder="e.g. Germany" style="margin-top:0.25rem">
+            </div>
+        </div>
+        <div style="display:flex;gap:0.5rem;margin-top:0.6rem">
+            <button id="btn-score" onclick="scoreUrl()" class="outline">Score Only</button>
+            <button id="btn-add" onclick="addJobFromUrl()">Fetch &amp; Add to DB</button>
+        </div>
+
+        <!-- Result panel — hidden until response -->
+        <div id="score-result" style="display:none;margin-top:1rem;padding:1rem;background:#f9fafb;border:1px solid #e5e7eb;border-radius:6px">
+            <div style="display:flex;align-items:center;gap:1rem;margin-bottom:0.75rem">
+                <div>
+                    <div style="font-size:0.8rem;color:#6b7280;text-transform:uppercase;letter-spacing:.05em">Match Score</div>
+                    <div id="res-score" style="font-size:2rem;font-weight:700;line-height:1"></div>
+                </div>
+                <div style="flex:1">
+                    <div style="height:10px;background:#e5e7eb;border-radius:5px;overflow:hidden">
+                        <div id="res-bar" style="height:100%;background:#16a34a;transition:width .4s"></div>
+                    </div>
+                </div>
+            </div>
+            <div id="res-title" style="font-weight:600;margin-bottom:0.25rem"></div>
+            <div id="res-chars" style="font-size:0.8rem;color:#6b7280;margin-bottom:0.75rem"></div>
+            <table style="width:100%;font-size:0.85rem;border-collapse:collapse">
+                <tbody id="res-breakdown"></tbody>
+            </table>
+            <div id="res-saved-msg" style="margin-top:0.6rem;font-size:0.85rem;color:#16a34a;display:none"></div>
+        </div>
+    </div>
+</details>
+
+<!-- Pipeline Run History -->
+<h3 style="margin-top:1.5rem">Run History</h3>
+{% if runs %}
+<table role="grid">
+    <thead>
+        <tr>
+            <th>Date</th>
+            <th>Status</th>
+            <th>Scraped</th>
+            <th>Matched</th>
+            <th>Applications</th>
+            <th>Emails</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for run in runs %}
+        <tr>
+            <td>{{ run.started_at[:16] if run.started_at else 'N/A' }}</td>
+            <td>
+                <span style="font-weight:600;color:{% if run.status == 'completed' %}#16a34a{% elif run.status == 'failed' %}#dc2626{% else %}#d97706{% endif %}">
+                    {{ run.status }}
+                </span>
+            </td>
+            <td>{{ run.jobs_scraped }}</td>
+            <td>{{ run.jobs_matched }}</td>
+            <td>{{ run.applications_created }}</td>
+            <td>{{ run.emails_sent }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% else %}
+<p style="color:#6b7280">No pipeline runs yet. Click "Run Pipeline Now" to start.</p>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function toggleEmails() {
+    const resp = await fetch('/api/toggle-emails', {method: 'POST'});
+    const data = await resp.json();
+    alert('Email notifications: ' + (data.enabled ? 'ON' : 'OFF'));
+    window.location.reload();
+}
+
+function _getUrl() {
+    const url = document.getElementById('manual-url').value.trim();
+    if (!url) { alert('Paste a job URL first'); return null; }
+    return url;
+}
+
+function _showResult(data, saved) {
+    const pct = Math.round(data.match_score * 100);
+    const color = pct >= 70 ? '#16a34a' : pct >= 40 ? '#d97706' : '#dc2626';
+
+    document.getElementById('res-score').textContent = pct + '%';
+    document.getElementById('res-score').style.color = color;
+    document.getElementById('res-bar').style.width = pct + '%';
+    document.getElementById('res-bar').style.background = color;
+    document.getElementById('res-title').textContent = data.title || '';
+    document.getElementById('res-chars').textContent =
+        data.description_length ? `${data.description_length} chars extracted from page` : '';
+
+    const labels = {
+        title_score: 'Title match', skill_score: 'Skill overlap',
+        semantic_score: 'Semantic (embedding)', location_score: 'Location',
+        experience_score: 'Experience', recency_score: 'Recency',
+        weighted_total: 'Weighted total',
+    };
+    const d = data.details || {};
+    let rows = '';
+    for (const [k, label] of Object.entries(labels)) {
+        if (k in d) {
+            const v = d[k];
+            const bar = Math.round(v * 60);
+            rows += `<tr>
+                <td style="padding:2px 8px 2px 0;color:#374151;white-space:nowrap">${label}</td>
+                <td style="padding:2px 0;width:100%">
+                    <div style="display:flex;align-items:center;gap:6px">
+                        <div style="flex:1;height:6px;background:#e5e7eb;border-radius:3px">
+                            <div style="width:${bar}px;max-width:100%;height:100%;background:${color};border-radius:3px"></div>
+                        </div>
+                        <span style="color:#6b7280;font-size:0.8rem;width:34px;text-align:right">${v.toFixed(3)}</span>
+                    </div>
+                </td>
+            </tr>`;
+        }
+    }
+    document.getElementById('res-breakdown').innerHTML = rows;
+
+    const savedMsg = document.getElementById('res-saved-msg');
+    if (saved) {
+        savedMsg.textContent = saved > 0 ? '✓ Saved to database' : 'Already in database (not duplicated)';
+        savedMsg.style.display = 'block';
+    } else {
+        savedMsg.style.display = 'none';
+    }
+
+    document.getElementById('score-result').style.display = 'block';
+}
+
+async function scoreUrl() {
+    const url = _getUrl(); if (!url) return;
+    const location = document.getElementById('manual-location').value.trim();
+    const btn = document.getElementById('btn-score');
+    btn.disabled = true; btn.textContent = 'Fetching...';
+    try {
+        const resp = await fetch('/api/score-url', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({url, location}),
+        });
+        const data = await resp.json();
+        if (data.status === 'ok') {
+            _showResult(data, null);
+        } else {
+            alert('Error: ' + (data.error || 'Unknown error'));
+        }
+    } catch(e) { alert('Error: ' + e.message); }
+    finally { btn.disabled = false; btn.textContent = 'Score Only'; }
+}
+
+async function addJobFromUrl() {
+    const url = _getUrl(); if (!url) return;
+    const location = document.getElementById('manual-location').value.trim();
+    const btn = document.getElementById('btn-add');
+    btn.disabled = true; btn.textContent = 'Fetching & scoring...';
+    try {
+        const resp = await fetch('/api/add-job', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({url, location}),
+        });
+        const data = await resp.json();
+        if (data.status === 'ok') {
+            _showResult(data, data.saved);
+        } else {
+            alert('Error: ' + (data.error || data.message));
+        }
+    } catch(e) { alert('Error: ' + e.message); }
+    finally { btn.disabled = false; btn.textContent = 'Fetch & Add to DB'; }
+}
+</script>
+{% endblock %}

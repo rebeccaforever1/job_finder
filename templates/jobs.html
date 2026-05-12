@@ -1,78 +1,120 @@
 {% extends "base.html" %}
-{% block title %}AI Apply — Jobs{% endblock %}
+{% block title %}job_finder — Jobs{% endblock %}
 {% block content %}
-<h2>All Jobs <small style="opacity:0.6">({{ total }})</small></h2>
 
-<form class="filter-bar" method="get" action="/jobs">
-    <div>
-        <label for="q">Search</label>
-        <input type="text" name="q" id="q" value="{{ search }}" placeholder="Title, company...">
+<div class="page-header">
+    <h1 class="page-title">All Jobs <small>{{ total }} results</small></h1>
+    <div class="btn-group">
+        <button class="btn btn-ghost btn-sm" onclick="rescoreJobs()">Re-score</button>
+        <button class="btn btn-primary btn-sm" onclick="scrapeJobs()">Scrape Now</button>
     </div>
-    <div>
+</div>
+
+<!-- Filter bar -->
+<form class="filter-bar" method="get" action="/jobs" id="filter-form">
+    <div class="filter-field search">
+        <label for="q">Search</label>
+        <input type="text" name="q" id="q" value="{{ search }}" placeholder="Title, company, keyword…">
+    </div>
+
+    <div class="filter-field">
         <label for="board">Source</label>
-        <select name="board" id="board">
-            <option value="">All</option>
+        <select name="board" id="board" onchange="this.form.submit()">
+            <option value="">All Sources</option>
             {% for b in boards %}
             <option value="{{ b }}" {% if board_filter == b %}selected{% endif %}>{{ b }}</option>
             {% endfor %}
         </select>
     </div>
-    <div>
-        <label for="country">Country</label>
-        <select name="country" id="country">
-            <option value="">All</option>
+
+    <div class="filter-field">
+        <label for="min_score">Min Score</label>
+        <select name="min_score" id="min_score" onchange="this.form.submit()">
+            <option value="0"  {% if min_score == 0 %}selected{% endif %}>Any</option>
+            <option value="0.2" {% if min_score == 0.2 %}selected{% endif %}>20%+</option>
+            <option value="0.4" {% if min_score == 0.4 %}selected{% endif %}>40%+</option>
+            <option value="0.5" {% if min_score == 0.5 %}selected{% endif %}>50%+</option>
+            <option value="0.6" {% if min_score == 0.6 %}selected{% endif %}>60%+</option>
+            <option value="0.7" {% if min_score == 0.7 %}selected{% endif %}>70%+</option>
+        </select>
+    </div>
+
+    <div class="filter-field">
+        <label for="sort">Sort by</label>
+        <select name="sort" id="sort" onchange="this.form.submit()">
+            <option value="score"   {% if sort == 'score' %}selected{% endif %}>Match Score</option>
+            <option value="date"    {% if sort == 'date' %}selected{% endif %}>Date Posted</option>
+            <option value="company" {% if sort == 'company' %}selected{% endif %}>Company</option>
+            <option value="title"   {% if sort == 'title' %}selected{% endif %}>Title</option>
+        </select>
+    </div>
+
+    <div class="filter-field">
+        <label for="country">Location</label>
+        <select name="country" id="country" onchange="this.form.submit()">
+            <option value="">All Locations</option>
             {% for c in countries %}
             <option value="{{ c }}" {% if country_filter == c %}selected{% endif %}>{{ c }}</option>
             {% endfor %}
         </select>
     </div>
-    <div>
-        <label for="min_score">Min Score (%)</label>
-        <input type="number" name="min_score" id="min_score" value="{{ "%.0f"|format(min_score * 100) }}"
-               min="0" max="100" step="5" placeholder="0" style="width:5rem">
-    </div>
-    <div>
-        <label for="sort">Sort</label>
-        <select name="sort" id="sort">
-            <option value="score" {% if sort == 'score' %}selected{% endif %}>Match Score</option>
-            <option value="date" {% if sort == 'date' %}selected{% endif %}>Date Posted</option>
-            <option value="company" {% if sort == 'company' %}selected{% endif %}>Company</option>
-            <option value="title" {% if sort == 'title' %}selected{% endif %}>Title</option>
-        </select>
-    </div>
-    <div>
+
+    <div class="filter-field">
         <label>&nbsp;</label>
-        <button type="submit">Filter</button>
+        <button type="submit" class="btn btn-primary">Filter</button>
     </div>
+
+    {% if board_filter or min_score > 0 or search or country_filter %}
+    <div class="filter-field">
+        <label>&nbsp;</label>
+        <a href="/jobs" class="btn btn-ghost">Clear</a>
+    </div>
+    {% endif %}
 </form>
 
+<!-- Active filter pills -->
+{% if board_filter or min_score > 0 or search or country_filter %}
+<div style="display:flex;gap:0.4rem;flex-wrap:wrap;margin-bottom:0.75rem;font-size:0.8rem;color:var(--muted)">
+    Active filters:
+    {% if search %}<span class="chip active">Search: "{{ search }}"</span>{% endif %}
+    {% if board_filter %}<span class="chip active">Source: {{ board_filter }}</span>{% endif %}
+    {% if min_score > 0 %}<span class="chip active">Score ≥ {{ "%.0f"|format(min_score * 100) }}%</span>{% endif %}
+    {% if country_filter %}<span class="chip active">Location: {{ country_filter }}</span>{% endif %}
+</div>
+{% endif %}
+
 {% if jobs %}
-<div>
+<div class="job-list">
     {% for job in jobs %}
-    <div class="job-row">
-        <div style="display:flex;justify-content:space-between;align-items:start">
-            <div>
-                <span class="score-badge {% if job.match_score >= 0.7 %}score-excellent{% elif job.match_score >= 0.4 %}score-good{% elif job.match_score >= 0.2 %}score-fair{% else %}score-low{% endif %}">
+    <div class="job-card">
+        <div class="job-card-header">
+            <div class="job-card-left">
+                <span class="score-badge {{ 'score-excellent' if job.match_score >= 0.7 else 'score-good' if job.match_score >= 0.4 else 'score-fair' if job.match_score >= 0.2 else 'score-low' }}">
                     {{ "%.0f"|format(job.match_score * 100) }}%
                 </span>
-                <span class="board-badge board-{{ job.board }}">{{ job.board }}</span>
-                {% if job.applied %}<span class="applied-badge">Applied</span>{% endif %}
+                <span class="badge board-badge board-{{ job.board }}">{{ job.board }}</span>
+                {% if job.applied %}<span class="badge applied-badge">Applied</span>{% endif %}
             </div>
             <div class="btn-group">
-                <a href="/job?url={{ job.url | urlencode }}" class="btn-sm outline" role="button">Details</a>
-                <button class="btn-sm" style="background:#88AC0B;border-color:#88AC0B;color:#fff" onclick="generateApplication('{{ job.url }}')">Generate</button>
-                <button class="btn-sm outline" onclick="markApplied('{{ job.url }}')">Applied</button>
-                <button class="btn-sm outline secondary" onclick="hideJob('{{ job.url }}')">Hide</button>
+                <a href="/job?url={{ job.url | urlencode }}" class="btn btn-ghost btn-sm">Details</a>
+                <button class="btn btn-primary btn-sm" onclick="generateApplication('{{ job.url }}', this)">Generate</button>
+                <button class="btn btn-ghost btn-sm" onclick="markApplied('{{ job.url }}')">Applied</button>
+                <button class="btn btn-ghost btn-sm" onclick="hideJob('{{ job.url }}')">Hide</button>
             </div>
         </div>
-        <div class="job-title">
-            <a href="{{ job.url }}" target="_blank">{{ job.title }}</a>
-        </div>
+
+        <a href="{{ job.url }}" target="_blank" class="job-title">{{ job.title }}</a>
+
         <div class="job-meta">
-            {{ job.company }} &middot; {{ job.location }}
-            {% if job.salary %} &middot; <span class="salary">{{ job.salary }}</span>{% endif %}
-            {% if job.date_posted %} &middot; {{ job.date_posted[:10] }}{% endif %}
+            <span>{{ job.company }}</span>
+            <span class="job-meta-sep">·</span>
+            <span>{{ job.location }}</span>
+            {% if job.salary %}<span class="job-meta-sep">·</span><span class="salary">{{ job.salary }}</span>{% endif %}
+            {% if job.date_posted and job.date_posted[:4] not in ['nan', 'NaN', 'Non', 'nat'] %}
+            <span class="job-meta-sep">·</span><span>{{ job.date_posted[:10] }}</span>
+            {% endif %}
         </div>
+
         {% if job.match_details.skills_matched %}
         <div class="skills-list">
             {% for s in job.match_details.skills_matched[:10] %}
@@ -80,8 +122,9 @@
             {% endfor %}
         </div>
         {% endif %}
+
         {% if job.description %}
-        <div class="desc-preview">{{ job.description[:500] }}{% if job.description|length > 500 %}...{% endif %}</div>
+        <div class="desc-preview">{{ job.description[:400] }}{% if job.description|length > 400 %}…{% endif %}</div>
         {% if job.description|length > 150 %}
         <button class="see-more-btn" onclick="toggleDescription(this)">See more</button>
         {% endif %}
@@ -93,18 +136,20 @@
 {% if total_pages > 1 %}
 <div class="pagination">
     {% if page > 1 %}
-    <a href="?page={{ page - 1 }}&board={{ board_filter }}&country={{ country_filter }}&min_score={{ min_score }}&q={{ search }}&sort={{ sort }}" role="button" class="outline">&laquo; Prev</a>
+    <a href="?page={{ page - 1 }}&board={{ board_filter }}&country={{ country_filter }}&min_score={{ min_score }}&q={{ search }}&sort={{ sort }}" class="btn btn-ghost btn-sm">← Prev</a>
     {% endif %}
-    <span style="padding:0.5rem">Page {{ page }} / {{ total_pages }}</span>
+    <span>Page {{ page }} of {{ total_pages }}</span>
     {% if page < total_pages %}
-    <a href="?page={{ page + 1 }}&board={{ board_filter }}&country={{ country_filter }}&min_score={{ min_score }}&q={{ search }}&sort={{ sort }}" role="button" class="outline">Next &raquo;</a>
+    <a href="?page={{ page + 1 }}&board={{ board_filter }}&country={{ country_filter }}&min_score={{ min_score }}&q={{ search }}&sort={{ sort }}" class="btn btn-ghost btn-sm">Next →</a>
     {% endif %}
 </div>
 {% endif %}
 
 {% else %}
-<article style="text-align:center;padding:2rem">
-    <p>No jobs match your filters.</p>
-</article>
+<div class="empty-state">
+    <h3>No jobs match your filters</h3>
+    <p style="margin-bottom:1rem">Try lowering the minimum score or clearing filters.</p>
+    <a href="/jobs" class="btn btn-ghost">Clear filters</a>
+</div>
 {% endif %}
 {% endblock %}

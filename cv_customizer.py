@@ -960,6 +960,7 @@ def customize_cv_for_job(
             "cv_pdf_path":  pdf_path,
             "app_dir":      str(app_dir),
             "tailored":     not used_fallback,
+            "job_analysis": job_analysis,
         }
 
     # Final fallback: retry compilation with base templates
@@ -980,6 +981,7 @@ def customize_cv_for_job(
             "cv_pdf_path":  pdf_path,
             "app_dir":      str(app_dir),
             "tailored":     False,
+            "job_analysis": job_analysis,
         }
 
     logger.error("CV generation failed entirely for %s at %s. See logs in %s.", title, company, app_dir)

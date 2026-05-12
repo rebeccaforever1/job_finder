@@ -1,11 +1,11 @@
-"""Generate profile.yaml from a life-story.md using a local LLM.
+"""Generate profile.yaml from life-story.md using a local LLM.
 
 Usage:
-    python main.py init-profile --life-story ~/CV/life-story.md --output profile.yaml
+    python main.py init-profile
+    python main.py init-profile --life-story path/to/life-story.md --output profile.yaml
 """
 
 import logging
-import re
 import yaml
 from pathlib import Path
 from typing import Optional
@@ -14,20 +14,49 @@ from llm import generate_structured, check_ollama_available, recommend_model
 
 logger = logging.getLogger(__name__)
 
+# Schema shown to the LLM — calibrated for senior data leadership roles
 PROFILE_SCHEMA = """
 {
-  "skills": ["list of technical skills, frameworks, tools — 20-50 items"],
-  "titles": ["list of 5-15 desired job titles that match the person's background"],
-  "keywords": ["list of 10-20 domain keywords to boost matching"],
   "name": "full name",
   "email": "email address",
-  "location": "current city, country",
+  "location": "current city, state",
   "summary": "2-3 sentence professional summary",
-  "preferred_locations": ["list of cities/countries the person wants to work in"],
-  "search_queries": ["list of 5-10 job search strings to use on job boards"],
-  "seniority_level": "intern|junior|mid|senior|staff (best match for the person)"
+  "skills": [
+    "list of 20-50 technical skills, frameworks, tools, and domain competencies"
+  ],
+  "titles": [
+    "list of 8-15 desired job titles that match the person's seniority and background",
+    "examples: Director of Data Analytics, VP of Data Science, Head of Data,",
+    "Senior Director of Analytics, Principal Data Scientist, Chief Data Officer"
+  ],
+  "keywords": [
+    "list of 10-20 domain keywords to boost job matching",
+    "examples: CLV modeling, media mix modeling, data governance, Tableau, Snowflake"
+  ],
+  "preferred_locations": [
+    "list of cities or regions the person wants to work in"
+  ],
+  "search_queries": [
+    "list of 8-12 concrete job search strings to use on job boards",
+    "examples: director of data analytics seattle, head of data remote,",
+    "VP analytics healthcare, senior director data science nonprofit"
+  ],
+  "seniority_level": "one of: manager | director | vp | head_of | principal | executive"
 }
 """
+
+# Default boards matching profile.yaml — update here if boards change
+DEFAULT_BOARDS = [
+    "indeed",
+    "glassdoor",
+    "google",
+    "linkedin",
+    "greenhouse",
+    "lever",
+    "usajobs",
+    "governmentjobs",
+    "idealist",
+]
 
 
 def generate_profile_from_life_story(
@@ -47,115 +76,186 @@ def generate_profile_from_life_story(
         return False
 
     if not life_story_path.exists():
-        logger.error("Life story file not found: %s", life_story_path)
+        logger.error("life-story.md not found at: %s", life_story_path)
         return False
 
-    life_story = life_story_path.read_text(encoding="utf-8")
+    life_story = life_story_path.read_text(encoding="utf-8").strip()
+    if not life_story:
+        logger.error("life-story.md is empty at: %s", life_story_path)
+        return False
+
     if not model:
         model = recommend_model()
 
-    logger.info("Generating profile.yaml from %s using %s ...", life_story_path, model)
+    logger.info("Generating profile.yaml from %s using %s...", life_story_path, model)
 
-    prompt = f"""Read this person's professional background and extract a structured profile.
+    prompt = f"""Read this person's professional background and extract a structured profile
+for use in an automated job search pipeline targeting senior data leadership roles.
 
 LIFE STORY:
 {life_story[:8000]}
 
-Return a JSON object matching this schema:
+Return a JSON object matching this schema exactly:
 {PROFILE_SCHEMA}
 
 RULES:
-- skills: include ALL programming languages, frameworks, tools, and domain skills mentioned
-- titles: infer the roles this person would realistically apply for
-- keywords: domain-specific terms that would boost relevance matching for their target jobs
-- preferred_locations: extract from the life story or notes; include country and city names
-- search_queries: concrete search strings to use on job boards (e.g. "computer vision engineer", "ML researcher robotics")
-- seniority_level: based on years of experience and roles held
+- name, email: extract directly from the life story header or contact section
+- skills: include every programming language, platform, tool, and domain skill mentioned
+- titles: infer realistic target titles based on seniority and trajectory —
+  this person has 15+ years of experience in senior data leadership roles,
+  so titles should reflect Director, VP, Head of, or Principal level
+- keywords: domain terms that would boost relevance matching for their target jobs —
+  include specific tools, methodologies, and industry terms from their background
+- preferred_locations: extract from the life story; include both city and remote
+- search_queries: write concrete strings someone would type into Indeed or LinkedIn —
+  include location variants (seattle, remote, washington state) and role variants
+- seniority_level: based on years of experience and most senior roles held
 
-Return ONLY valid JSON. No explanation, no markdown."""
+Return ONLY valid JSON. No explanation, no markdown, no code fences."""
 
     data = generate_structured(prompt, model=model, max_tokens=3000)
-    if not data:
-        logger.error("LLM returned empty or invalid response")
+    if not data or not isinstance(data, dict):
+        logger.error("LLM returned empty or invalid response. Try running again.")
         return False
 
-    # Build profile.yaml structure
+    # Validate required fields
+    missing = [f for f in ["name", "skills", "titles"] if not data.get(f)]
+    if missing:
+        logger.warning(
+            "LLM response missing fields: %s. Profile may be incomplete.",
+            ", ".join(missing),
+        )
+
     profile = _build_profile_yaml(data)
 
-    output_path.write_text(yaml.dump(profile, default_flow_style=False, allow_unicode=True, sort_keys=False), encoding="utf-8")
+    # Write with a header comment
+    yaml_str = (
+        "# profile.yaml — generated by job_finder from life-story.md\n"
+        "# Review and edit before running the pipeline.\n"
+        "# Re-run 'python main.py init-profile' to regenerate from scratch.\n\n"
+        + yaml.dump(
+            profile,
+            default_flow_style=False,
+            allow_unicode=True,
+            sort_keys=False,
+        )
+    )
+
+    output_path.write_text(yaml_str, encoding="utf-8")
     logger.info("Profile written to %s", output_path)
-    print(f"\nProfile generated: {output_path}")
-    print("Review and edit it before running the pipeline.\n")
-    _print_summary(data)
+
+    _print_summary(data, output_path)
     return True
 
 
 def _build_profile_yaml(data: dict) -> dict:
     """Convert LLM output into the full profile.yaml structure."""
-    name = data.get("name", "YOUR NAME")
-    email = data.get("email", "you@example.com")
-    preferred_locations = data.get("preferred_locations", ["Remote"])
+    email    = data.get("email", "")
+    location = data.get("location", "Seattle, WA")
 
-    # Build default search locations from preferred locations (country level)
-    countries = [loc for loc in preferred_locations if len(loc.split(",")) == 1]
-    if not countries:
-        countries = preferred_locations[:5]
+    preferred_locations = data.get("preferred_locations", ["Seattle, WA", "Remote"])
+    if not preferred_locations:
+        preferred_locations = ["Seattle, WA", "Remote"]
+
+    # Search locations: city-level, derived from preferred locations
+    search_locations = []
+    for loc in preferred_locations:
+        # Keep location strings as-is — don't strip to country level
+        if loc and loc not in search_locations:
+            search_locations.append(loc)
+    if not search_locations:
+        search_locations = ["Seattle, WA"]
+
+    search_queries = data.get("search_queries", [
+        "director of data analytics",
+        "head of data seattle",
+        "VP analytics remote",
+        "senior director data science",
+    ])
 
     return {
-        "# Generated by profile_generator.py — review and edit before use": None,
-
-        "skills": data.get("skills", []),
-        "titles": data.get("titles", []),
+        "skills":   data.get("skills", []),
+        "titles":   data.get("titles", []),
         "keywords": data.get("keywords", []),
 
         "search": {
-            "queries": data.get("search_queries", ["machine learning engineer"]),
-            "locations": countries,
-            "remote": True,
-            "job_type": "",
+            "queries":      search_queries,
+            "locations":    search_locations,
+            "remote":       True,
+            "job_type":     "",
             "max_age_days": 14,
-            "boards": [
-                "indeed", "glassdoor", "google", "linkedin",
-                "arbeitnow", "himalayas", "themuse",
-                "greenhouse", "lever",
-                "linkedin_posts", "internet",
-            ],
+            "boards":       DEFAULT_BOARDS,
         },
 
         "companies": {
             "greenhouse": [],
-            "lever": [],
+            "lever":      [],
         },
 
         "preferred_locations": preferred_locations,
-        "remote_preferred": True,
+        "remote_preferred":    True,
+
+        "seniority_level": data.get("seniority_level", "director"),
 
         "weights": {
-            "title": 0.10,
-            "skills": 0.30,
-            "semantic": 0.35,
-            "location": 0.10,
-            "experience": 0.02,
-            "seniority": 0.10,
-            "specialty": 0.03,
-            "recency": 0.0,
+            "title":      0.15,
+            "skills":     0.25,
+            "semantic":   0.35,
+            "location":   0.10,
+            "experience": 0.05,
+            "seniority":  0.07,
+            "specialty":  0.03,
+            "recency":    0.00,
         },
 
         "pipeline": {
-            "auto_apply_threshold": 0.50,
-            "max_applications_per_run": 10,
-            "email_recipient": email,
+            "auto_apply_threshold":       0.50,
+            "max_applications_per_run":   10,
+            "email_recipient":            email,
             "email_digest_interval_days": 2,
-            "cv_dir": "./cv",
-            "ollama_model": "qwen3.5:9b",
+            "cv_dir":                     "./cv",
+            "ollama_model":               "qwen3.5:9b",
         },
     }
 
 
-def _print_summary(data: dict) -> None:
-    print(f"Name:      {data.get('name', '?')}")
-    print(f"Email:     {data.get('email', '?')}")
-    print(f"Seniority: {data.get('seniority_level', '?')}")
-    print(f"Skills:    {len(data.get('skills', []))} extracted")
-    print(f"Titles:    {', '.join(data.get('titles', [])[:4])} ...")
-    print(f"Locations: {', '.join(data.get('preferred_locations', [])[:4])}")
+def _print_summary(data: dict, output_path: Path) -> None:
+    """Print a human-readable summary of what was generated."""
+    print(f"\n{'─' * 55}")
+    print(f"  Profile generated: {output_path}")
+    print(f"{'─' * 55}")
+    print(f"  Name:       {data.get('name', '(not found)')}")
+    print(f"  Email:      {data.get('email', '(not found)')}")
+    print(f"  Location:   {data.get('location', '(not found)')}")
+    print(f"  Seniority:  {data.get('seniority_level', '(not found)')}")
+    print(f"  Skills:     {len(data.get('skills', []))} extracted")
+    print(f"  Titles:     {len(data.get('titles', []))} extracted")
+
+    titles = data.get("titles", [])
+    if titles:
+        for t in titles[:5]:
+            print(f"              · {t}")
+        if len(titles) > 5:
+            print(f"              · ... and {len(titles) - 5} more")
+
+    queries = data.get("search_queries", [])
+    if queries:
+        print(f"  Searches:   {len(queries)} queries")
+        for q in queries[:4]:
+            print(f"              · {q}")
+
+    locs = data.get("preferred_locations", [])
+    if locs:
+        print(f"  Locations:  {', '.join(locs[:4])}")
+
+    print(f"{'─' * 55}")
+    print("  Next steps:")
+    print("  1. Open profile.yaml and review — especially titles and search queries")
+    print("  2. Add company names to the greenhouse/lever sections if needed")
+    print(f"  3. Run: python main.py scrape")
+    print(f"{'─' * 55}\n")
+    print(
+        "  NOTE: 'email_recipient' in profile.yaml is set to your life-story email.\n"
+        "  This is where digest emails will be sent. Update it in profile.yaml\n"
+        "  or set NOTIFY_EMAIL in your .env file if you want a different address.\n"
+    )

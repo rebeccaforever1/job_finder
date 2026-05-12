@@ -19,6 +19,11 @@ from .bayt import BaytScraper
 from .gulftalent import GulfTalentScraper
 from .wuzzuf import WuzzufScraper
 from .apify_linkedin import ApifyLinkedInScraper
+from .usajobs import USAJobsScraper
+from .governmentjobs import GovernmentJobsScraper
+from .idealist import IdealistScraper
+
+
 
 SCRAPERS = {
     # JobSpy-backed scrapers (handle JS rendering + bot detection)
@@ -42,4 +47,8 @@ SCRAPERS = {
     "bayt": BaytScraper,
     "gulftalent": GulfTalentScraper,
     "wuzzuf": WuzzufScraper,        # Egypt's largest job board
+    # US gov and non profit
+    "usajobs": USAJobsScraper,
+    "governmentjobs": GovernmentJobsScraper,
+    "idealist": IdealistScraper,
 }

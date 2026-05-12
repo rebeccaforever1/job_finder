@@ -1,122 +1,535 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="light">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}AI Apply{% endblock %}</title>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css">
+    <title>{% block title %}job_finder{% endblock %}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
     <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
         :root {
-            --pico-font-size: 15px;
+            --navy:      #0D1B2A;
+            --navy-2:    #122030;
+            --navy-3:    #1A2E3B;
+            --teal:      #028090;
+            --seafoam:   #00A896;
+            --mint:      #02C39A;
+            --white:     #FFFFFF;
+            --off-white: #F0F4F8;
+            --muted:     #8EAFC2;
+            --border:    #1E3448;
+            --text:      #E8F4F8;
+            --text-dim:  #8EAFC2;
+            --card-bg:   #122030;
+            --input-bg:  #0D1B2A;
+            --green:     #02C39A;
+            --amber:     #F59E0B;
+            --red:       #EF4444;
+            --blue:      #3B82F6;
         }
-        body { min-height: 100vh; background: #f8f9fa; }
-        nav { padding: 0.5rem 1rem; background: #fff; border-bottom: 1px solid #e0e0e0; }
-        .brand { font-weight: 700; font-size: 1.2rem; color: var(--pico-primary); }
-        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 1.5rem; }
-        .stat-card { text-align: center; padding: 1.2rem; border-radius: 8px; background: #fff; border: 1px solid #e0e0e0; box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
-        .stat-card .value { font-size: 2rem; font-weight: 700; color: var(--pico-primary); }
-        .stat-card .label { font-size: 0.85rem; opacity: 0.6; margin-top: 0.3rem; }
-        .score-badge { display: inline-block; padding: 0.15rem 0.5rem; border-radius: 4px; font-weight: 600; font-size: 0.85rem; }
-        .score-excellent { background: #dcfce7; color: #16a34a; }
-        .score-good { background: #dbeafe; color: #2563eb; }
-        .score-fair { background: #fef3c7; color: #d97706; }
-        .score-low { background: #f3f4f6; color: #6b7280; }
-        .board-badge { display: inline-block; padding: 0.1rem 0.4rem; border-radius: 3px; font-size: 0.75rem; font-weight: 600; text-transform: uppercase; }
-        .board-remotive { background: #ede9fe; color: #7c3aed; }
-        .board-adzuna { background: #059669; color: #fff; }
-        .board-linkedin { background: #0077b5; color: #fff; }
-        .board-jsearch { background: #fff7ed; color: #ea580c; }
-        .board-indeed { background: #2557a7; color: #fff; }
-        .board-glassdoor { background: #0caa41; color: #fff; }
-        .board-stepstone { background: #ff6600; color: #fff; }
-        .board-arbeitnow { background: #fce7f3; color: #db2777; }
-        .board-themuse { background: #ecfdf5; color: #047857; }
-        .board-himalayas { background: #f0f9ff; color: #0369a1; }
-        .job-row { padding: 0.8rem 0; border-bottom: 1px solid #e5e7eb; }
-        .job-row:hover { background: #f9fafb; }
-        .job-title { font-weight: 600; }
-        .job-title a { text-decoration: none; color: #1a1a1a; }
-        .job-title a:hover { color: var(--pico-primary); }
-        .job-meta { font-size: 0.85rem; color: #6b7280; margin-top: 0.2rem; }
-        .skills-list { margin-top: 0.3rem; }
-        .skill-tag { display: inline-block; padding: 0.05rem 0.35rem; border-radius: 3px; font-size: 0.75rem; background: #e0e7ff; color: #3730a3; margin: 0.1rem; }
-        .filter-bar { display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: end; margin-bottom: 1rem; }
-        .filter-bar select, .filter-bar input { margin-bottom: 0; }
-        .pagination { display: flex; gap: 0.5rem; justify-content: center; margin-top: 1rem; }
-        .btn-group { display: flex; gap: 0.3rem; }
-        .btn-sm { padding: 0.2rem 0.5rem; font-size: 0.8rem; }
-        .salary { color: #16a34a; font-weight: 600; }
-        .desc-preview { font-size: 0.85rem; color: #4b5563; margin-top: 0.3rem; max-height: 3em; overflow: hidden; transition: max-height 0.3s ease; }
-        .desc-preview.expanded { max-height: none; }
-        .see-more-btn { font-size: 0.8rem; color: var(--pico-primary); cursor: pointer; background: none; border: none; padding: 0.2rem 0; text-decoration: underline; }
-        .actions { display: flex; gap: 0.5rem; margin-top: 0.5rem; }
-        .applied-badge { background: #dcfce7; color: #16a34a; padding: 0.1rem 0.4rem; border-radius: 3px; font-size: 0.75rem; }
-        #scrape-status { display: none; padding: 0.5rem; background: #dbeafe; color: #1e40af; border-radius: 4px; margin-top: 0.5rem; }
-        .settings-panel { background: #fff; border: 1px solid #e0e0e0; border-radius: 8px; padding: 1rem; margin-bottom: 1.5rem; box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
-        .settings-panel summary { font-weight: 600; cursor: pointer; }
-        .chip { display: inline-flex; align-items: center; gap: 0.3rem; padding: 0.2rem 0.5rem; border-radius: 16px; font-size: 0.8rem; margin: 0.15rem; background: #f3f4f6; border: 1px solid #d1d5db; }
-        .chip.active { background: #dbeafe; border-color: #93c5fd; color: #1e40af; }
-        .chip.excluded { background: #fee2e2; border-color: #fca5a5; color: #991b1b; text-decoration: line-through; }
-        .chip button { background: none; border: none; cursor: pointer; padding: 0; font-size: 1rem; line-height: 1; color: inherit; opacity: 0.6; }
+
+        body {
+            font-family: 'DM Sans', sans-serif;
+            background: var(--navy);
+            color: var(--text);
+            min-height: 100vh;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+
+        /* ── Nav ─────────────────────────────────────────── */
+        .nav {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 2rem;
+            height: 56px;
+            background: var(--navy-2);
+            border-bottom: 1px solid var(--border);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        .nav-brand {
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: var(--mint);
+            letter-spacing: -0.02em;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            text-decoration: none;
+        }
+        .nav-brand::before {
+            content: '';
+            width: 8px;
+            height: 8px;
+            background: var(--mint);
+            border-radius: 50%;
+            display: inline-block;
+        }
+        .nav-links {
+            display: flex;
+            gap: 0.25rem;
+            list-style: none;
+        }
+        .nav-links a {
+            display: block;
+            padding: 0.4rem 0.85rem;
+            border-radius: 6px;
+            color: var(--muted);
+            text-decoration: none;
+            font-weight: 500;
+            font-size: 0.875rem;
+            transition: all 0.15s;
+        }
+        .nav-links a:hover { color: var(--white); background: var(--border); }
+        .nav-links a.active { color: var(--white); background: var(--teal); }
+
+        /* ── Layout ──────────────────────────────────────── */
+        .main { max-width: 1280px; margin: 0 auto; padding: 2rem 2rem; }
+
+        /* ── Page header ─────────────────────────────────── */
+        .page-header {
+            display: flex;
+            align-items: baseline;
+            justify-content: space-between;
+            margin-bottom: 1.5rem;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+        }
+        .page-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            letter-spacing: -0.02em;
+            color: var(--white);
+        }
+        .page-title small {
+            font-size: 0.9rem;
+            font-weight: 400;
+            color: var(--muted);
+            margin-left: 0.5rem;
+        }
+
+        /* ── Stats grid ──────────────────────────────────── */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+        .stat-card {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 1.1rem 1.2rem;
+            text-align: center;
+        }
+        .stat-card .value {
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--mint);
+            line-height: 1.1;
+        }
+        .stat-card .label {
+            font-size: 0.78rem;
+            color: var(--muted);
+            margin-top: 0.3rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        /* ── Buttons ─────────────────────────────────────── */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
+            padding: 0.5rem 1rem;
+            border-radius: 7px;
+            font-family: inherit;
+            font-size: 0.875rem;
+            font-weight: 600;
+            cursor: pointer;
+            border: 1px solid transparent;
+            transition: all 0.15s;
+            text-decoration: none;
+            white-space: nowrap;
+        }
+        .btn-primary { background: var(--teal); color: var(--white); border-color: var(--teal); }
+        .btn-primary:hover { background: var(--seafoam); border-color: var(--seafoam); }
+        .btn-ghost { background: transparent; color: var(--muted); border-color: var(--border); }
+        .btn-ghost:hover { color: var(--white); border-color: var(--muted); }
+        .btn-danger { background: transparent; color: var(--red); border-color: var(--red); }
+        .btn-danger:hover { background: var(--red); color: var(--white); }
+        .btn-success { background: var(--mint); color: var(--navy); border-color: var(--mint); }
+        .btn-success:hover { opacity: 0.9; }
+        .btn-sm { padding: 0.3rem 0.65rem; font-size: 0.8rem; border-radius: 5px; }
+        .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+        .btn-group { display: flex; gap: 0.4rem; flex-wrap: wrap; }
+
+        /* ── Filter bar ──────────────────────────────────── */
+        .filter-bar {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 1rem 1.25rem;
+            display: flex;
+            gap: 0.75rem;
+            align-items: flex-end;
+            flex-wrap: wrap;
+            margin-bottom: 1.25rem;
+        }
+        .filter-field { display: flex; flex-direction: column; gap: 0.3rem; }
+        .filter-field label { font-size: 0.75rem; color: var(--muted); font-weight: 500; text-transform: uppercase; letter-spacing: 0.04em; }
+        .filter-field input,
+        .filter-field select {
+            background: var(--input-bg);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            color: var(--white);
+            padding: 0.45rem 0.75rem;
+            font-family: inherit;
+            font-size: 0.875rem;
+            outline: none;
+            transition: border-color 0.15s;
+            min-width: 0;
+        }
+        .filter-field input:focus,
+        .filter-field select:focus { border-color: var(--teal); }
+        .filter-field select option { background: var(--navy-2); }
+        .filter-field.search { flex: 1; min-width: 160px; }
+        .filter-field.search input { width: 100%; }
+
+        /* ── Job cards ───────────────────────────────────── */
+        .job-list { display: flex; flex-direction: column; gap: 0.6rem; }
+        .job-card {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 1rem 1.25rem;
+            transition: border-color 0.15s, transform 0.1s;
+            cursor: default;
+        }
+        .job-card:hover { border-color: var(--teal); transform: translateY(-1px); }
+        .job-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 0.75rem;
+            margin-bottom: 0.5rem;
+        }
+        .job-card-left { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
+        .job-title {
+            font-size: 0.95rem;
+            font-weight: 600;
+            color: var(--white);
+            text-decoration: none;
+            display: block;
+            margin-bottom: 0.2rem;
+        }
+        .job-title:hover { color: var(--mint); }
+        .job-meta { font-size: 0.8rem; color: var(--muted); display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center; }
+        .job-meta-sep { color: var(--border); }
+
+        /* ── Badges ──────────────────────────────────────── */
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 0.15rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.72rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+            white-space: nowrap;
+        }
+        .score-badge { font-size: 0.85rem; font-weight: 700; padding: 0.2rem 0.6rem; border-radius: 5px; }
+        .score-excellent { background: rgba(2, 195, 154, 0.15); color: var(--mint); border: 1px solid rgba(2, 195, 154, 0.3); }
+        .score-good      { background: rgba(59, 130, 246, 0.15); color: #60A5FA; border: 1px solid rgba(59, 130, 246, 0.3); }
+        .score-fair      { background: rgba(245, 158, 11, 0.15); color: var(--amber); border: 1px solid rgba(245, 158, 11, 0.3); }
+        .score-low       { background: rgba(142, 175, 194, 0.1); color: var(--muted); border: 1px solid var(--border); }
+
+        .board-badge { font-size: 0.68rem; padding: 0.12rem 0.45rem; border-radius: 4px; font-weight: 700; text-transform: uppercase; }
+        .board-indeed      { background: rgba(37, 87, 167, 0.25); color: #7BA7D6; }
+        .board-linkedin    { background: rgba(0, 119, 181, 0.25); color: #5BA6CC; }
+        .board-glassdoor   { background: rgba(12, 170, 65, 0.25); color: #5CC97D; }
+        .board-google      { background: rgba(234, 88, 12, 0.2); color: #FB923C; }
+        .board-greenhouse  { background: rgba(2, 128, 144, 0.25); color: #5BC4D0; }
+        .board-lever       { background: rgba(139, 92, 246, 0.2); color: #A78BFA; }
+        .board-usajobs     { background: rgba(220, 38, 38, 0.2); color: #FCA5A5; }
+        .board-governmentjobs { background: rgba(180, 83, 9, 0.2); color: #FCD34D; }
+        .board-idealist    { background: rgba(236, 72, 153, 0.2); color: #F9A8D4; }
+        .board-remotive    { background: rgba(124, 58, 237, 0.2); color: #C4B5FD; }
+        .board-himalayas   { background: rgba(14, 165, 233, 0.2); color: #7DD3FC; }
+
+        .applied-badge { background: rgba(2, 195, 154, 0.15); color: var(--mint); border: 1px solid rgba(2, 195, 154, 0.3); }
+        .salary { color: var(--mint); font-weight: 600; }
+
+        /* ── Skills ──────────────────────────────────────── */
+        .skills-list { display: flex; flex-wrap: wrap; gap: 0.3rem; margin-top: 0.5rem; }
+        .skill-tag {
+            display: inline-block;
+            padding: 0.1rem 0.45rem;
+            border-radius: 4px;
+            font-size: 0.72rem;
+            font-weight: 500;
+            background: rgba(2, 128, 144, 0.15);
+            color: var(--seafoam);
+            border: 1px solid rgba(2, 128, 144, 0.25);
+        }
+
+        /* ── Description preview ─────────────────────────── */
+        .desc-preview {
+            font-size: 0.82rem;
+            color: var(--muted);
+            margin-top: 0.5rem;
+            max-height: 2.8em;
+            overflow: hidden;
+            transition: max-height 0.3s ease;
+            line-height: 1.5;
+        }
+        .desc-preview.expanded { max-height: 500px; }
+        .see-more-btn {
+            font-size: 0.78rem;
+            color: var(--teal);
+            cursor: pointer;
+            background: none;
+            border: none;
+            padding: 0.2rem 0;
+            font-family: inherit;
+            text-decoration: underline;
+        }
+
+        /* ── Table ───────────────────────────────────────── */
+        table { width: 100%; border-collapse: collapse; }
+        thead th {
+            text-align: left;
+            padding: 0.6rem 0.75rem;
+            font-size: 0.72rem;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            color: var(--muted);
+            border-bottom: 1px solid var(--border);
+            font-weight: 600;
+        }
+        tbody td {
+            padding: 0.65rem 0.75rem;
+            border-bottom: 1px solid var(--border);
+            vertical-align: middle;
+            font-size: 0.875rem;
+        }
+        tbody tr:hover { background: rgba(255,255,255,0.02); }
+        tbody tr:last-child td { border-bottom: none; }
+        .table-wrap { background: var(--card-bg); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+
+        /* ── Form elements ───────────────────────────────── */
+        input, select, textarea {
+            background: var(--input-bg);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            color: var(--white);
+            padding: 0.5rem 0.75rem;
+            font-family: inherit;
+            font-size: 0.875rem;
+            outline: none;
+            width: 100%;
+            transition: border-color 0.15s;
+        }
+        input:focus, select:focus, textarea:focus { border-color: var(--teal); }
+        input::placeholder { color: var(--muted); }
+        label { font-size: 0.8rem; color: var(--muted); font-weight: 500; display: block; margin-bottom: 0.3rem; }
+        select option { background: var(--navy-2); }
+
+        /* ── Cards / panels ──────────────────────────────── */
+        .panel {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 1.25rem;
+            margin-bottom: 1.25rem;
+        }
+        .panel-title {
+            font-size: 0.9rem;
+            font-weight: 700;
+            color: var(--white);
+            margin-bottom: 0.75rem;
+            letter-spacing: -0.01em;
+        }
+
+        /* ── Alert / status ──────────────────────────────── */
+        .alert {
+            padding: 0.65rem 0.9rem;
+            border-radius: 7px;
+            font-size: 0.85rem;
+            display: none;
+            margin-top: 0.75rem;
+        }
+        .alert.info  { background: rgba(59, 130, 246, 0.15); color: #93C5FD; border: 1px solid rgba(59, 130, 246, 0.3); }
+        .alert.success { background: rgba(2, 195, 154, 0.15); color: var(--mint); border: 1px solid rgba(2, 195, 154, 0.3); }
+        .alert.error { background: rgba(239, 68, 68, 0.15); color: #FCA5A5; border: 1px solid rgba(239, 68, 68, 0.3); }
+        .alert.show { display: block; }
+
+        /* ── Pagination ──────────────────────────────────── */
+        .pagination {
+            display: flex;
+            gap: 0.5rem;
+            justify-content: center;
+            align-items: center;
+            margin-top: 1.25rem;
+        }
+        .pagination span { color: var(--muted); font-size: 0.85rem; }
+
+        /* ── Code / mono ─────────────────────────────────── */
+        code, .mono { font-family: 'DM Mono', monospace; font-size: 0.82rem; }
+        pre {
+            background: var(--navy);
+            border: 1px solid var(--border);
+            border-radius: 7px;
+            padding: 0.75rem 1rem;
+            overflow-x: auto;
+            font-family: 'DM Mono', monospace;
+            font-size: 0.82rem;
+            color: var(--mint);
+        }
+
+        /* ── Source tag cloud ────────────────────────────── */
+        .source-tags { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+        .source-tag {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
+            padding: 0.3rem 0.7rem;
+            border-radius: 20px;
+            font-size: 0.78rem;
+            font-weight: 600;
+            border: 1px solid var(--border);
+            cursor: pointer;
+            transition: all 0.15s;
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+            color: var(--muted);
+        }
+        .source-tag:hover { border-color: var(--teal); color: var(--white); }
+        .source-tag.active { border-color: var(--teal); background: rgba(2, 128, 144, 0.15); color: var(--seafoam); }
+
+        /* ── Chip ────────────────────────────────────────── */
+        .chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.3rem;
+            padding: 0.25rem 0.6rem;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            margin: 0.15rem;
+            background: var(--navy-3);
+            border: 1px solid var(--border);
+            color: var(--muted);
+        }
+        .chip.active { background: rgba(2, 128, 144, 0.15); border-color: rgba(2, 128, 144, 0.4); color: var(--seafoam); }
+        .chip.excluded { background: rgba(239, 68, 68, 0.1); border-color: rgba(239, 68, 68, 0.3); color: #FCA5A5; text-decoration: line-through; }
+        .chip button { background: none; border: none; cursor: pointer; padding: 0; font-size: 0.9rem; color: inherit; opacity: 0.6; line-height: 1; }
         .chip button:hover { opacity: 1; }
+
+        /* ── Score bar ───────────────────────────────────── */
+        .score-bar-wrap { display: flex; align-items: center; gap: 0.5rem; }
+        .score-bar { flex: 1; height: 5px; background: var(--border); border-radius: 3px; overflow: hidden; }
+        .score-bar-fill { height: 100%; border-radius: 3px; transition: width 0.4s; }
+
+        /* ── Details/summary ─────────────────────────────── */
+        details { margin-bottom: 0.75rem; }
+        summary {
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 0.875rem;
+            color: var(--text);
+            padding: 0.5rem 0;
+            list-style: none;
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+        }
+        summary::-webkit-details-marker { display: none; }
+        summary::before { content: '▶'; font-size: 0.6rem; color: var(--muted); transition: transform 0.15s; }
+        details[open] summary::before { transform: rotate(90deg); }
+
+        /* ── Empty state ─────────────────────────────────── */
+        .empty-state {
+            text-align: center;
+            padding: 3rem 1rem;
+            color: var(--muted);
+        }
+        .empty-state h3 { color: var(--text); margin-bottom: 0.5rem; font-size: 1.1rem; }
+
+        /* ── Breadcrumb ──────────────────────────────────── */
+        .breadcrumb {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.8rem;
+            color: var(--muted);
+            margin-bottom: 1.25rem;
+        }
+        .breadcrumb a { color: var(--teal); text-decoration: none; }
+        .breadcrumb a:hover { color: var(--mint); }
+        .breadcrumb-sep { color: var(--border); }
+
+        /* ── Progress / spinner ──────────────────────────── */
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .spinner {
+            display: inline-block;
+            width: 14px;
+            height: 14px;
+            border: 2px solid var(--border);
+            border-top-color: var(--mint);
+            border-radius: 50%;
+            animation: spin 0.7s linear infinite;
+        }
+
+        /* ── Responsive ──────────────────────────────────── */
+        @media (max-width: 768px) {
+            .nav { padding: 0 1rem; }
+            .main { padding: 1rem; }
+            .filter-bar { padding: 0.75rem; }
+            .nav-links a { padding: 0.35rem 0.5rem; font-size: 0.8rem; }
+        }
     </style>
 </head>
 <body>
-    <nav>
-        <ul>
-            <li><span class="brand">AI Apply</span></li>
-        </ul>
-        <ul>
-            <li><a href="/">Dashboard</a></li>
-            <li><a href="/jobs">All Jobs</a></li>
-            <li><a href="/jobs?board=&min_score=0.4">Top Matches</a></li>
-            <li><a href="/applications">Applications</a></li>
-            <li><a href="/pipeline">Pipeline</a></li>
-            <li><a href="/settings">Settings</a></li>
+    <nav class="nav">
+        <a href="/" class="nav-brand">job_finder</a>
+        <ul class="nav-links">
+            <li><a href="/" {% if request.path == '/' %}class="active"{% endif %}>Dashboard</a></li>
+            <li><a href="/jobs" {% if request.path == '/jobs' %}class="active"{% endif %}>Jobs</a></li>
+            <li><a href="/applications" {% if request.path == '/applications' %}class="active"{% endif %}>Applications</a></li>
+            <li><a href="/pipeline" {% if request.path == '/pipeline' %}class="active"{% endif %}>Pipeline</a></li>
+            <li><a href="/settings" {% if request.path == '/settings' %}class="active"{% endif %}>Settings</a></li>
         </ul>
     </nav>
-    <main class="container">
+    <main class="main">
         {% block content %}{% endblock %}
     </main>
+
     <script>
-        async function scrapeJobs(boards, keywords, loc) {
-            const statusEl = document.getElementById('scrape-status');
-            if (statusEl) {
-                statusEl.style.display = 'block';
-                statusEl.textContent = 'Scraping in progress... This may take a minute.';
-            }
-            const body = {};
-            if (boards) body.boards = boards;
-            if (keywords) body.keywords = keywords;
-            if (loc) body.location = loc;
-
-            // Get excluded boards from localStorage
-            const excludedBoards = JSON.parse(localStorage.getItem('excludedBoards') || '[]');
-            if (excludedBoards.length > 0) body.excluded_boards = excludedBoards;
-
-            // Get excluded countries from localStorage
-            const excludedCountries = JSON.parse(localStorage.getItem('excludedCountries') || '[]');
-            if (excludedCountries.length > 0) body.excluded_countries = excludedCountries;
-
-            try {
-                const resp = await fetch('/api/scrape', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify(body),
-                });
-                const data = await resp.json();
-                if (statusEl) statusEl.textContent = 'Scraping started! Refresh in a minute to see results.';
-                setTimeout(() => window.location.reload(), 30000);
-            } catch (e) {
-                if (statusEl) statusEl.textContent = 'Error: ' + e.message;
-            }
+        // ── Shared utilities ──────────────────────────────────────────────────
+        function scoreBadgeClass(s) {
+            if (s >= 0.7) return 'score-excellent';
+            if (s >= 0.4) return 'score-good';
+            if (s >= 0.2) return 'score-fair';
+            return 'score-low';
         }
 
-        async function rescoreJobs() {
-            const resp = await fetch('/api/rescore', {method: 'POST'});
-            const data = await resp.json();
-            alert(`Re-scored ${data.rescored} jobs`);
-            window.location.reload();
+        function showAlert(id, msg, type='info') {
+            const el = document.getElementById(id);
+            if (!el) return;
+            el.textContent = msg;
+            el.className = `alert ${type} show`;
+        }
+
+        function hideAlert(id) {
+            const el = document.getElementById(id);
+            if (el) el.className = 'alert';
         }
 
         async function markApplied(url) {
@@ -125,7 +538,7 @@
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({url}),
             });
-            window.location.reload();
+            location.reload();
         }
 
         async function hideJob(url) {
@@ -134,31 +547,27 @@
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({url}),
             });
-            window.location.reload();
+            location.reload();
         }
 
         function toggleDescription(btn) {
             const preview = btn.previousElementSibling;
-            if (preview.classList.contains('expanded')) {
-                preview.classList.remove('expanded');
-                btn.textContent = 'See more';
-            } else {
-                preview.classList.add('expanded');
-                btn.textContent = 'See less';
-            }
+            const expanded = preview.classList.toggle('expanded');
+            btn.textContent = expanded ? 'See less' : 'See more';
         }
 
-        function scoreBadgeClass(score) {
-            if (score >= 0.7) return 'score-excellent';
-            if (score >= 0.4) return 'score-good';
-            if (score >= 0.2) return 'score-fair';
-            return 'score-low';
+        async function rescoreJobs() {
+            const resp = await fetch('/api/rescore', {method: 'POST'});
+            const data = await resp.json();
+            alert(`Re-scored ${data.rescored} jobs.`);
+            location.reload();
         }
 
-        async function generateApplication(url) {
-            const btn = event.target;
+        async function generateApplication(url, btn) {
+            if (!btn) btn = event.target;
+            const orig = btn.innerHTML;
             btn.disabled = true;
-            btn.textContent = 'Generating...';
+            btn.innerHTML = '<span class="spinner"></span> Generating…';
             try {
                 const resp = await fetch('/api/generate-application', {
                     method: 'POST',
@@ -167,44 +576,44 @@
                 });
                 const data = await resp.json();
                 if (data.status === 'ok') {
-                    alert('Application generated! CV and cover letter ready.');
-                    window.location.reload();
+                    alert('Application is generating in the background.\nRefresh in ~2 minutes to see the result.');
                 } else {
                     alert('Error: ' + (data.error || 'Unknown error'));
+                    btn.disabled = false;
+                    btn.innerHTML = orig;
                 }
             } catch(e) {
                 alert('Error: ' + e.message);
-            } finally {
                 btn.disabled = false;
-                btn.textContent = 'Generate Application';
+                btn.innerHTML = orig;
             }
         }
 
-        async function addManualJob() {
-            const url = document.getElementById('manual-url').value.trim();
-            const location = document.getElementById('manual-location') ?
-                document.getElementById('manual-location').value.trim() : '';
-            if (!url) { alert('URL is required'); return; }
+        async function scrapeJobs(boards) {
+            const statusEl = document.getElementById('scrape-status');
+            if (statusEl) { statusEl.className = 'alert info show'; statusEl.textContent = 'Scraping in progress… this takes 30-90 seconds.'; }
+            const body = {};
+            if (boards) body.boards = boards;
+            const excludedBoards = JSON.parse(localStorage.getItem('excludedBoards') || '[]');
+            if (excludedBoards.length) body.excluded_boards = excludedBoards;
             try {
-                const resp = await fetch('/api/add-job', {
+                await fetch('/api/scrape', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({url, location}),
+                    body: JSON.stringify(body),
                 });
-                const data = await resp.json();
-                if (data.status === 'ok') {
-                    alert(`Added: "${data.title}"\nMatch score: ${(data.match_score * 100).toFixed(0)}%\n\nOpen the Pipeline page for a full score breakdown.`);
-                    window.location.reload();
-                } else {
-                    alert('Error: ' + (data.error || data.message));
-                }
-            } catch(e) { alert('Error: ' + e.message); }
+                if (statusEl) statusEl.textContent = 'Scraping started! Page will refresh in 60 seconds…';
+                setTimeout(() => location.reload(), 60000);
+            } catch(e) {
+                if (statusEl) { statusEl.className = 'alert error show'; statusEl.textContent = 'Error: ' + e.message; }
+            }
         }
 
         async function runPipeline(dryRun) {
             const btn = event.target;
+            const orig = btn.textContent;
             btn.disabled = true;
-            btn.textContent = dryRun ? 'Previewing...' : 'Running...';
+            btn.textContent = dryRun ? 'Previewing…' : 'Running…';
             try {
                 const resp = await fetch('/api/run-pipeline', {
                     method: 'POST',
@@ -213,9 +622,9 @@
                 });
                 const data = await resp.json();
                 alert(data.message || 'Pipeline started');
-                if (!dryRun) setTimeout(() => window.location.reload(), 5000);
+                if (!dryRun) setTimeout(() => location.reload(), 5000);
             } catch(e) { alert('Error: ' + e.message); }
-            finally { btn.disabled = false; btn.textContent = dryRun ? 'Dry Run' : 'Run Pipeline'; }
+            finally { btn.disabled = false; btn.textContent = orig; }
         }
     </script>
     {% block scripts %}{% endblock %}

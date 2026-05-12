@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}AI Apply{% endblock %}</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css">
+    <style>
+        :root {
+            --pico-font-size: 15px;
+        }
+        body { min-height: 100vh; background: #f8f9fa; }
+        nav { padding: 0.5rem 1rem; background: #fff; border-bottom: 1px solid #e0e0e0; }
+        .brand { font-weight: 700; font-size: 1.2rem; color: var(--pico-primary); }
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 1.5rem; }
+        .stat-card { text-align: center; padding: 1.2rem; border-radius: 8px; background: #fff; border: 1px solid #e0e0e0; box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
+        .stat-card .value { font-size: 2rem; font-weight: 700; color: var(--pico-primary); }
+        .stat-card .label { font-size: 0.85rem; opacity: 0.6; margin-top: 0.3rem; }
+        .score-badge { display: inline-block; padding: 0.15rem 0.5rem; border-radius: 4px; font-weight: 600; font-size: 0.85rem; }
+        .score-excellent { background: #dcfce7; color: #16a34a; }
+        .score-good { background: #dbeafe; color: #2563eb; }
+        .score-fair { background: #fef3c7; color: #d97706; }
+        .score-low { background: #f3f4f6; color: #6b7280; }
+        .board-badge { display: inline-block; padding: 0.1rem 0.4rem; border-radius: 3px; font-size: 0.75rem; font-weight: 600; text-transform: uppercase; }
+        .board-remotive { background: #ede9fe; color: #7c3aed; }
+        .board-adzuna { background: #059669; color: #fff; }
+        .board-linkedin { background: #0077b5; color: #fff; }
+        .board-jsearch { background: #fff7ed; color: #ea580c; }
+        .board-indeed { background: #2557a7; color: #fff; }
+        .board-glassdoor { background: #0caa41; color: #fff; }
+        .board-stepstone { background: #ff6600; color: #fff; }
+        .board-arbeitnow { background: #fce7f3; color: #db2777; }
+        .board-themuse { background: #ecfdf5; color: #047857; }
+        .board-himalayas { background: #f0f9ff; color: #0369a1; }
+        .job-row { padding: 0.8rem 0; border-bottom: 1px solid #e5e7eb; }
+        .job-row:hover { background: #f9fafb; }
+        .job-title { font-weight: 600; }
+        .job-title a { text-decoration: none; color: #1a1a1a; }
+        .job-title a:hover { color: var(--pico-primary); }
+        .job-meta { font-size: 0.85rem; color: #6b7280; margin-top: 0.2rem; }
+        .skills-list { margin-top: 0.3rem; }
+        .skill-tag { display: inline-block; padding: 0.05rem 0.35rem; border-radius: 3px; font-size: 0.75rem; background: #e0e7ff; color: #3730a3; margin: 0.1rem; }
+        .filter-bar { display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: end; margin-bottom: 1rem; }
+        .filter-bar select, .filter-bar input { margin-bottom: 0; }
+        .pagination { display: flex; gap: 0.5rem; justify-content: center; margin-top: 1rem; }
+        .btn-group { display: flex; gap: 0.3rem; }
+        .btn-sm { padding: 0.2rem 0.5rem; font-size: 0.8rem; }
+        .salary { color: #16a34a; font-weight: 600; }
+        .desc-preview { font-size: 0.85rem; color: #4b5563; margin-top: 0.3rem; max-height: 3em; overflow: hidden; transition: max-height 0.3s ease; }
+        .desc-preview.expanded { max-height: none; }
+        .see-more-btn { font-size: 0.8rem; color: var(--pico-primary); cursor: pointer; background: none; border: none; padding: 0.2rem 0; text-decoration: underline; }
+        .actions { display: flex; gap: 0.5rem; margin-top: 0.5rem; }
+        .applied-badge { background: #dcfce7; color: #16a34a; padding: 0.1rem 0.4rem; border-radius: 3px; font-size: 0.75rem; }
+        #scrape-status { display: none; padding: 0.5rem; background: #dbeafe; color: #1e40af; border-radius: 4px; margin-top: 0.5rem; }
+        .settings-panel { background: #fff; border: 1px solid #e0e0e0; border-radius: 8px; padding: 1rem; margin-bottom: 1.5rem; box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
+        .settings-panel summary { font-weight: 600; cursor: pointer; }
+        .chip { display: inline-flex; align-items: center; gap: 0.3rem; padding: 0.2rem 0.5rem; border-radius: 16px; font-size: 0.8rem; margin: 0.15rem; background: #f3f4f6; border: 1px solid #d1d5db; }
+        .chip.active { background: #dbeafe; border-color: #93c5fd; color: #1e40af; }
+        .chip.excluded { background: #fee2e2; border-color: #fca5a5; color: #991b1b; text-decoration: line-through; }
+        .chip button { background: none; border: none; cursor: pointer; padding: 0; font-size: 1rem; line-height: 1; color: inherit; opacity: 0.6; }
+        .chip button:hover { opacity: 1; }
+    </style>
+</head>
+<body>
+    <nav>
+        <ul>
+            <li><span class="brand">AI Apply</span></li>
+        </ul>
+        <ul>
+            <li><a href="/">Dashboard</a></li>
+            <li><a href="/jobs">All Jobs</a></li>
+            <li><a href="/jobs?board=&min_score=0.4">Top Matches</a></li>
+            <li><a href="/applications">Applications</a></li>
+            <li><a href="/pipeline">Pipeline</a></li>
+            <li><a href="/settings">Settings</a></li>
+        </ul>
+    </nav>
+    <main class="container">
+        {% block content %}{% endblock %}
+    </main>
+    <script>
+        async function scrapeJobs(boards, keywords, loc) {
+            const statusEl = document.getElementById('scrape-status');
+            if (statusEl) {
+                statusEl.style.display = 'block';
+                statusEl.textContent = 'Scraping in progress... This may take a minute.';
+            }
+            const body = {};
+            if (boards) body.boards = boards;
+            if (keywords) body.keywords = keywords;
+            if (loc) body.location = loc;
+
+            // Get excluded boards from localStorage
+            const excludedBoards = JSON.parse(localStorage.getItem('excludedBoards') || '[]');
+            if (excludedBoards.length > 0) body.excluded_boards = excludedBoards;
+
+            // Get excluded countries from localStorage
+            const excludedCountries = JSON.parse(localStorage.getItem('excludedCountries') || '[]');
+            if (excludedCountries.length > 0) body.excluded_countries = excludedCountries;
+
+            try {
+                const resp = await fetch('/api/scrape', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(body),
+                });
+                const data = await resp.json();
+                if (statusEl) statusEl.textContent = 'Scraping started! Refresh in a minute to see results.';
+                setTimeout(() => window.location.reload(), 30000);
+            } catch (e) {
+                if (statusEl) statusEl.textContent = 'Error: ' + e.message;
+            }
+        }
+
+        async function rescoreJobs() {
+            const resp = await fetch('/api/rescore', {method: 'POST'});
+            const data = await resp.json();
+            alert(`Re-scored ${data.rescored} jobs`);
+            window.location.reload();
+        }
+
+        async function markApplied(url) {
+            await fetch('/api/job/apply', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({url}),
+            });
+            window.location.reload();
+        }
+
+        async function hideJob(url) {
+            await fetch('/api/job/hide', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({url}),
+            });
+            window.location.reload();
+        }
+
+        function toggleDescription(btn) {
+            const preview = btn.previousElementSibling;
+            if (preview.classList.contains('expanded')) {
+                preview.classList.remove('expanded');
+                btn.textContent = 'See more';
+            } else {
+                preview.classList.add('expanded');
+                btn.textContent = 'See less';
+            }
+        }
+
+        function scoreBadgeClass(score) {
+            if (score >= 0.7) return 'score-excellent';
+            if (score >= 0.4) return 'score-good';
+            if (score >= 0.2) return 'score-fair';
+            return 'score-low';
+        }
+
+        async function generateApplication(url) {
+            const btn = event.target;
+            btn.disabled = true;
+            btn.textContent = 'Generating...';
+            try {
+                const resp = await fetch('/api/generate-application', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({url}),
+                });
+                const data = await resp.json();
+                if (data.status === 'ok') {
+                    alert('Application generated! CV and cover letter ready.');
+                    window.location.reload();
+                } else {
+                    alert('Error: ' + (data.error || 'Unknown error'));
+                }
+            } catch(e) {
+                alert('Error: ' + e.message);
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Generate Application';
+            }
+        }
+
+        async function addManualJob() {
+            const url = document.getElementById('manual-url').value.trim();
+            const location = document.getElementById('manual-location') ?
+                document.getElementById('manual-location').value.trim() : '';
+            if (!url) { alert('URL is required'); return; }
+            try {
+                const resp = await fetch('/api/add-job', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({url, location}),
+                });
+                const data = await resp.json();
+                if (data.status === 'ok') {
+                    alert(`Added: "${data.title}"\nMatch score: ${(data.match_score * 100).toFixed(0)}%\n\nOpen the Pipeline page for a full score breakdown.`);
+                    window.location.reload();
+                } else {
+                    alert('Error: ' + (data.error || data.message));
+                }
+            } catch(e) { alert('Error: ' + e.message); }
+        }
+
+        async function runPipeline(dryRun) {
+            const btn = event.target;
+            btn.disabled = true;
+            btn.textContent = dryRun ? 'Previewing...' : 'Running...';
+            try {
+                const resp = await fetch('/api/run-pipeline', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({dry_run: dryRun}),
+                });
+                const data = await resp.json();
+                alert(data.message || 'Pipeline started');
+                if (!dryRun) setTimeout(() => window.location.reload(), 5000);
+            } catch(e) { alert('Error: ' + e.message); }
+            finally { btn.disabled = false; btn.textContent = dryRun ? 'Dry Run' : 'Run Pipeline'; }
+        }
+    </script>
+    {% block scripts %}{% endblock %}
+</body>
+</html>
